@@ -8,9 +8,11 @@
 
 import React, {
   useEffect,
+  useState,
 } from 'react';
 
 import {
+  Button,
   FlatList,
   PermissionsAndroid,
   SafeAreaView,
@@ -58,30 +60,32 @@ async function requestLocationPermission() {
   }
 }
 
-// function to manage list items for BLE devices
-const listItem = (deviceInfo) => {
-  <View style = {styles.box}>
-    <Text style = {styles.text}>
-      {deviceInfo.name}
-    </Text>
-    <Text style = {styles.subText}>
-      {deviceInfo.id}
-    </Text>
-  </View>
-}
+// function to manage the items in the flatlist
+const ListItem = ({ item, onPress, backgroundColor, textColor }) => (
+  <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
+    <Text style={[styles.nameText, textColor]}>Name: {item.name}</Text>
+    <Text style={[styles.subText, textColor]}>MAC address or UUID: {item.id}</Text>
+  </TouchableOpacity>
+);
 
 const App = () => {
+  const [isScanning, setIsScanning] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
 
-  // function to manage ble scanning
-  const startBle = () => {
+  // function to start scanning for ble devices
+  const startBleScan = () => {
     console.log("inside start ble function");
-    const permission = requestLocationPermission();
-    if(permission == PermissionsAndroid.RESULTS.GRANTED){
-      const subscription = manager.onStateChange((state) => {
-        if (state === 'PoweredOn') {
+    console.log(isScanning);
+    if(!isScanning){
+      setIsScanning(true);
+      console.log("requesting BLE permission");
+      const permission = requestLocationPermission();
+      if(permission){
+        const subscription = manager.onStateChange((state) => {
+          if (state == 'PoweredOn') {
             manager.startDeviceScan(null, null, (error, device) => {
               console.log("scanning...");
-              console.log(device.id);
+              console.log(device.name);
               if(null){
                 console.log("no devices found");
               }
@@ -91,81 +95,71 @@ const App = () => {
               }
             });
             subscription.remove();
-        }
-      }, true);
+          }
+        }, true);
+      }
     }
-  }
+  };
+  
+  // function to switch the text and background colour of a listed item on press 
+  const renderListItem = ({ item }) => {
+    const backgroundColor = item.id === selectedId ? "peru" : "papayawhip";
+    const color = item.id === selectedId ? 'white' : 'grey';
 
-  const connectDevice = (deviceId) => {
-    console.log("inside connect device function");
-    manager.connectToDevice(deviceId, {autoconnect: true});
-    console.log("connecting to device...");
-    console.log(manager.isDeviceConnected(deviceId));
-  }
-
-  const renderItem = ({item}) => {
-    console.log("inside render item");
-    <listItem deviceInfo = {item}></listItem>
-  }
+    return (
+      <ListItem
+        item={item}
+        onPress={() => setSelectedId(item.id)}
+        backgroundColor={{ backgroundColor }}
+        textColor={{ color }}
+      />
+    );
+  };
 
   return (
-    <SafeAreaView style = {styles.sectionTitleContainer}>
-      <Text style = {styles.sectionTitle}>
-        Wi-Fi Connect for ESP32
-      </Text>
-      <View style = {styles.sectionContainer}>
-        <TouchableOpacity
-        // include function call here to scan for BT devices
-          onPress = {startBle()}
-          style = {styles.button}
-          >
-          <Text style = {styles.buttonText}>
-            Scan for Bluetooth Devices
-          </Text>
-          </TouchableOpacity>
-          <View style = {styles.box}>
-            <FlatList
-              data = {deviceList}
-              renderItem = {renderItem}
-              keyExtractor = {(item) => item.id}
-              
-            >
-              
-            </FlatList>
-          </View>
+ 
+    <SafeAreaView style={styles.container}>
+      <View style = {styles.headerStyle}>
+        <Text style = {styles.titleText}>Wi-Fi Connect for ESP32</Text>
       </View>
+      <TouchableOpacity
+        style = {styles.button}
+        onPress = {() => startBleScan()}
+        >
+        <Text style = {{color: "snow", fontSize: 18}}>
+          {'Scan for BLE Devices:' + (isScanning ? 'on' : 'off')}
+        </Text>
+      </TouchableOpacity>
+      <FlatList
+        data={deviceList}
+        renderItem={renderListItem}
+        keyExtractor={(item) => item.id}
+        extraData={selectedId}
+      />
     </SafeAreaView>
-  )
+
+    
+  );
 };
 
 const styles = StyleSheet.create({
-  sectionTitleContainer: {
+  container: {
     flex: 1,
-    paddingVertical: 5,
-    backgroundColor: "cadetblue",
-  },
-  sectionContainer: {
-    flex: 3,
     backgroundColor: "snow",
     alignItems: "center",
-    padding: 10,
+    // marginTop: StatusBar.currentHeight || 0,
   },
-  sectionTitle: {
-    color: "snow",
-    fontSize: 28,
-    textAlign: 'center',
-    fontWeight: '400',
-  },
-  buttonText: {
-    color: "snow",
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  headerStyle: {
+    flex: 0.2,
+    width: '100%',
+    height: 45,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "cadetblue",
   },
   button: {
     marginTop: 50,
+    marginBottom: 20,
     paddingVertical: 10,
     paddingHorizontal: 30,
     borderRadius: 4,
@@ -173,29 +167,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: "48%",
   },
-  box: {
-    flex: 1,
-    marginTop: StatusBar.currentHeight || 0,
-    // marginTop: 20,
-    // paddingVertical: 10,
-    // paddingHorizontal: 30,
-    width: 275,
-    // height: 200,
-    // alignItems: "center",
-    backgroundColor: "seashell",
-    borderRadius: 4,
-  },
   item: {
     padding: 20,
+    width: 275,
     marginVertical: 8,
     marginHorizontal: 16,
+    borderRadius: 4,
   },
-  text: {
-    fontSize: 18,
+  nameText: {
+    fontSize: 16,
   },
   subText: {
-    fontSize: 12,
+    fontSize: 14,
+  },
+  titleText: {
+    fontSize: 28,
+    color: "snow",
   },
 });
+
 
 export default App;
