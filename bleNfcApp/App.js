@@ -42,7 +42,7 @@ const requestLocationPermission = async() => {
 const ListItem = ({ item, onPress, backgroundColor, textColor }) => (
   <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
     <Text style={[styles.nameText, textColor]}>Name: {item.name}</Text>
-    <Text style={[styles.subText, textColor]}>MAC address or UUID: {item.id}</Text>
+    <Text style={[styles.subText, textColor]}>MAC address/UUID: {item.id}</Text>
   </TouchableOpacity>
 );
 
@@ -95,6 +95,16 @@ const App = () => {
     }
     return (true);
   };
+
+  // Connect to selected BLE device
+  const connectToBleDevice = async(device) => {
+    console.log("connecting to: " + device.name);
+    const connect = manager.connectToDevice(device.id, {autoConnect: false});
+    if(connect){
+      console.log("Connection established...");
+    }
+    return true;
+  }
   
   // Switch the text and background colour of a listed item on press 
   const renderListItem = ({ item }) => {
@@ -105,7 +115,7 @@ const App = () => {
     return (
       <ListItem
         item={item}
-        onPress={() => setScannedDevices(item)}
+        onPress={() => connectToBleDevice(item)}
         backgroundColor={{ backgroundColor }}
         textColor={{ color }}
       />
