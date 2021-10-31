@@ -12,7 +12,6 @@ import React, {
 } from 'react';
 
 import {
-  Button,
   FlatList,
   PermissionsAndroid,
   SafeAreaView,
@@ -30,33 +29,21 @@ import { BleManager } from 'react-native-ble-plx';
 export const manager = new BleManager();
 
 //variables - test version of a BLE device list
-const deviceList = [
-  {id:'MAC address on Android and UUID on iOS', name: 'No devices detected'},
-  {id:'this should be unique', name: 'Device name if present'},
-];
+// const deviceList = [
+//   {id:'MAC address on Android and UUID on iOS', name: 'No devices detected'},
+//   {id:'this should be unique', name: 'Device name if present'},
+// ];
 
 // function to request ble permission from android device
-async function requestLocationPermission() {
-  try {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION, {
-        title: 'Location permission for bluetooth scanning',
-        message: 'Wi-Fi Connect for ESP32 needs access to your device location',
-        buttonNeutral: 'Ask Me Later',
-        buttonNegative: 'Cancel',
-        buttonPositive: 'OK',
-      },
-    ); 
+const requestLocationPermission = async() => {
+  
+    const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION); 
     if (granted === PermissionsAndroid.RESULTS.GRANTED) {
       console.log('Location permission for bluetooth scanning granted');
       return true;
     } else {
       console.log('Location permission for bluetooth scanning revoked');
       return false;
-    }
-  } catch (err) {
-    console.warn(err);
-    return false;
   }
 }
 
@@ -70,46 +57,112 @@ const ListItem = ({ item, onPress, backgroundColor, textColor }) => (
 
 const App = () => {
   const [isScanning, setIsScanning] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  const [deviceCount, setDeviceCount] = useState(0);
+  const [scannedDevices, setScannedDevices] = useState({});
+  const [logData, setLogData] = useState([]);
+  const [logCount, setLogCount] = useState(0);
+
+  useEffect(() => {
+    manager.onStateChange((state) => {
+      const subscription = manager.onStateChange(async (state) => {
+        console.log(state);
+        const newLogData = logData;
+        newLogData.push(state);
+        await setLogCount(newLogData.length);
+        await setLogData(newLogData);
+        subscription.remove();
+      }, true);
+      return () => subscription.remove();
+    });
+  }, [manager]);
+
+  // function to turn on BT
+  // const manageBle = async() => {
+  //   const btState = await manager.state();
+  //   if(btState === "Unsupported") {
+  //     alert("Bluetooth is not supported");
+  //     return (false);
+  //   }
+  //   if(btState !== 'PoweredOn'){
+  //     await manager.enable();
+  //   }
+  //   return (true);
+  // }
 
   // function to start scanning for ble devices
-  const startBleScan = () => {
+  const startBleScan = async() => {
     console.log("inside start ble function");
-    console.log(isScanning);
-    if(!isScanning){
-      setIsScanning(true);
-      console.log("requesting BLE permission");
-      const permission = requestLocationPermission();
-      if(permission){
-        const subscription = manager.onStateChange((state) => {
-          if (state == 'PoweredOn') {
-            manager.startDeviceScan(null, null, (error, device) => {
-              console.log("scanning...");
-              console.log(device.name);
-              if(null){
-                console.log("no devices found");
-              }
-              if (error) {
-                console.log(error);
-                return;
-              }
-            });
-            subscription.remove();
-          }
-        }, true);
-      }
+
+    // turn on bt if its off
+    const btState = await manager.state();
+    if(btState !== 'PoweredOn'){
+      await manager.enable();
     }
+    console.log("requesting BLE permission");
+    const permission = await requestLocationPermission();
+    if (permission) {
+      manager.startDeviceScan(null, null, async (error, device) => {
+        console.log("Scanning...");
+          // error handling
+          if (error) {
+            console.log(error);
+            return
+          }
+          // found a bluetooth device
+          if (device) {
+            // console.log("Device name:" + device.name);
+            // console.log("Device id:" + device.id);
+            const newScannedDevices = scannedDevices;
+            newScannedDevices[device.id] = device;
+            await setDeviceCount(Object.keys(newScannedDevices).length);
+            await setScannedDevices(scannedDevices);
+          }
+      });
+    }
+    return (true);
+
+    // console.log("Scanning: " + isScanning);
+    // manageBle();
+
+    // if(!isScanning){
+    //   setIsScanning(true);
+      // console.log("requesting BLE permission");
+      // const permission = requestLocationPermission();
+
+      // if(permission){
+      //   const subscription = manager.onStateChange((state) => {
+      //     manager.startDeviceScan(null, null, (error, device) => {
+      //       console.log("scanning...");
+      //       if (error) {
+      //         console.log(error);
+      //         return;
+      //       }
+      //       if (device) {
+      //       console.log("Device name:" + device.name);
+      //       console.log("Device id:" + device.id);
+      //       const newScannedDevices = scannedDevices;
+      //       newScannedDevices[device.id] = device;
+      //       setDeviceCount(Object.keys(newScannedDevices).length);
+      //       setScannedDevices(scannedDevices);
+      //       }
+      //     });
+      //     subscription.remove();
+          
+      //   }, true);
+      // }
+    // }
   };
   
   // function to switch the text and background colour of a listed item on press 
   const renderListItem = ({ item }) => {
-    const backgroundColor = item.id === selectedId ? "peru" : "papayawhip";
-    const color = item.id === selectedId ? 'white' : 'grey';
+    const backgroundColor = item.id === scannedDevices.name ? "peru" : "papayawhip";
+    const color = item.id === scannedDevices.name ? 'white' : 'grey';
+    manager.stopDeviceScan();
 
     return (
       <ListItem
         item={item}
-        onPress={() => setSelectedId(item.id)}
+        onPress={() => setScannedDevices(item)}
         backgroundColor={{ backgroundColor }}
         textColor={{ color }}
       />
@@ -127,14 +180,12 @@ const App = () => {
         onPress = {() => startBleScan()}
         >
         <Text style = {{color: "snow", fontSize: 18}}>
-          {'Scan for BLE Devices:' + (isScanning ? 'on' : 'off')}
+          {'Scan for BLE Devices'}
         </Text>
       </TouchableOpacity>
       <FlatList
-        data={deviceList}
+        data={Object.values(scannedDevices)}
         renderItem={renderListItem}
-        keyExtractor={(item) => item.id}
-        extraData={selectedId}
       />
     </SafeAreaView>
 
@@ -150,7 +201,7 @@ const styles = StyleSheet.create({
     // marginTop: StatusBar.currentHeight || 0,
   },
   headerStyle: {
-    flex: 0.2,
+    flex: 0.15,
     width: '100%',
     height: 45,
     justifyContent: "center",
@@ -169,7 +220,7 @@ const styles = StyleSheet.create({
   },
   item: {
     padding: 20,
-    width: 275,
+    // width: 275,
     marginVertical: 8,
     marginHorizontal: 16,
     borderRadius: 4,
