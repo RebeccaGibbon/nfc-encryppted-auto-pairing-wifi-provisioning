@@ -12,6 +12,8 @@ import React, {
 } from 'react';
 import {
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
   PermissionsAndroid,
   SafeAreaView,
   ScrollView,
@@ -19,11 +21,16 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TextInput } from 'react-native-gesture-handler';
 export const manager = new BleManager();
 
+const Stack = createNativeStackNavigator();
 
 // Request location permission from android device (needed for BT)
 const requestLocationPermission = async() => {
@@ -46,7 +53,7 @@ const ListItem = ({ item, onPress, backgroundColor, textColor }) => (
   </TouchableOpacity>
 );
 
-const App = () => {
+const bleConnectAndSend = ({navigation}) => {
   const [deviceCount, setDeviceCount] = useState(0);
   const [scannedDevices, setScannedDevices] = useState({});
   const [logData, setLogData] = useState([]);
@@ -103,6 +110,7 @@ const App = () => {
     if(connect){
       console.log("Connection established...");
     }
+    navigation.navigate('Send Credentials');
     return true;
   }
   
@@ -139,9 +147,119 @@ const App = () => {
         data={Object.values(scannedDevices)}
         renderItem={renderListItem}
       />
-    </SafeAreaView>  
+    </SafeAreaView>
   );
 };
+
+// Allow user to input and send Wi-Fi credentials to paired BLE device
+function sendCreds() {
+
+  const [ssid, setSsid] = useState('');
+  const [password, setPassword] = useState('');
+
+  const testPrint = async() => {
+    console.log("entered test function...");
+    await setSsid(ssid);
+    await setPassword(password);
+    // console.log("SSID:" + ssid);
+    // console.log( "Password:" + password);
+
+    const message = {
+      "clientcredentialWIFI_SSID" : ssid,
+      "clientcredentialWIFI_PASSWORD" : password
+    };
+    console.log(JSON.stringify(message));
+
+    manager.writeCharacteristicWithResponseForDevice(device.id, service.uuid, characteristic.uuid, JSON.stringify(message));
+
+    return;
+  }
+
+  return (
+      <KeyboardAvoidingView style={styles.container}>
+          <View style = {styles.headerStyle}>
+            <Text style = {styles.titleText}>Wi-Fi Connect for ESP32</Text>
+          </View>
+          <Text style = {{fontSize: 18, padding: 10}}>
+            Send Wi-Fi Credentials to Selected Device
+          </Text>
+            <View style = {{
+                backgroundColor: "tan", 
+                padding: 10,
+                borderRadius: 4, 
+                height: '25%', 
+                width: '90%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                }}>
+                <View style = {{
+                  backgroundColor: "wheat",
+                  padding: 5, 
+                  borderRadius: 4, 
+                  height: '40%', 
+                  width: '100%',
+                  justifyContent: 'center',
+                  }}>
+                  <View style = {{flexDirection: "row", justifyContent: 'center',}}>
+                    <Text style = {styles.nameText, {paddingTop: 13}}>
+                      Wi-Fi SSID:
+                    </Text>
+                    <TextInput 
+                    style = { styles.nameText, styles.input }
+                    placeholder = "Enter SSID here"
+                    onChangeText={text => setSsid(text)}
+                    defaultValue={ssid}
+                    value = {ssid}
+                    />
+                  </View>
+                </View>
+
+                <View style = {{
+                  marginTop: 20,
+                  padding: 5,
+                  backgroundColor: "wheat", 
+                  borderRadius: 4, 
+                  height: '40%', 
+                  width: '100%',
+                  justifyContent: 'center',
+                  }}>
+                  <View style = {{flexDirection: "row", justifyContent: 'center',}}>
+                    <Text style = {styles.nameText, {paddingTop: 13}}>
+                      Password:
+                    </Text>
+                    <TextInput 
+                    style = {styles.nameText, styles.input}
+                    placeholder = "Enter password here"
+                    onChangeText={text => setPassword(text)}
+                    defaultValue={password}
+                    value = {password}
+                    />
+                  </View>
+                </View>
+              </View>
+
+          <TouchableOpacity
+            style = {styles.button}
+            onPress = {() => {testPrint()}}
+            >
+            <Text style = {{color: "snow", fontSize: 18}}>
+              {'Send'}
+            </Text>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+  );
+}
+
+function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Connect Bluetooth" component={bleConnectAndSend} />
+        <Stack.Screen name="Send Credentials" component={sendCreds} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -183,6 +301,12 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 28,
     color: "snow",
+  },
+  input: {
+    backgroundColor: "papayawhip", 
+    borderRadius: 4,
+    width: '75%',
+    justifyContent: 'center',
   },
 });
 
