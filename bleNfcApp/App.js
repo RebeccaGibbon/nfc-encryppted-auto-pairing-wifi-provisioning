@@ -132,9 +132,6 @@ const bleConnectAndSend = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style = {styles.headerStyle}>
-        <Text style = {styles.titleText}>Wi-Fi Connect for ESP32</Text>
-      </View>
       <TouchableOpacity
         style = {styles.button}
         onPress = {() => startBleScan()}
@@ -177,75 +174,72 @@ function sendCreds() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior="height" keyboardVerticalOffset={-100}>
-        <View style = {styles.headerStyle}>
-          <Text style = {styles.titleText}>Wi-Fi Connect for ESP32</Text>
-        </View>
-        <Text style = {{fontSize: 18, padding: 10}}>
-          Send Wi-Fi Credentials to Selected Device
-        </Text>
+      <Text style = {{fontSize: 18, padding: 10}}>
+        Send Wi-Fi Credentials to Selected Device
+      </Text>
+      <View style = {{
+        backgroundColor: "tan", 
+        padding: 10,
+        borderRadius: 4, 
+        height: '25%', 
+        width: '90%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        }}>
         <View style = {{
-          backgroundColor: "tan", 
-          padding: 10,
+          backgroundColor: "wheat",
+          padding: 5, 
           borderRadius: 4, 
-          height: '25%', 
-          width: '90%',
-          alignItems: 'center',
+          height: '40%', 
+          width: '100%',
           justifyContent: 'center',
           }}>
-          <View style = {{
-            backgroundColor: "wheat",
-            padding: 5, 
-            borderRadius: 4, 
-            height: '40%', 
-            width: '100%',
-            justifyContent: 'center',
-            }}>
-            <View style = {{flexDirection: "row", justifyContent: 'center',}}>
-              <Text style = {styles.nameText, {paddingTop: 13}}>
-                Wi-Fi SSID:
-              </Text>
-              <TextInput 
+          <View style = {{flexDirection: "row", justifyContent: 'center',}}>
+            <Text style = {styles.nameText, {paddingTop: 13}}>
+              Wi-Fi SSID:
+            </Text>
+            <TextInput 
               style = { styles.nameText, styles.input }
               placeholder = "Enter SSID here"
               onChangeText={text => setSsid(text)}
               defaultValue={ssid}
               value = {ssid}
-              />
-            </View>
+            />
           </View>
+        </View>
 
-          <View style = {{
-            marginTop: 20,
-            padding: 5,
-            backgroundColor: "wheat", 
-            borderRadius: 4, 
-            height: '40%', 
-            width: '100%',
-            justifyContent: 'center',
-            }}>
-            <View style = {{flexDirection: "row", justifyContent: 'center',}}>
-              <Text style = {styles.nameText, {paddingTop: 13}}>
-                Password:
-              </Text>
-              <TextInput 
+        <View style = {{
+          marginTop: 20,
+          padding: 5,
+          backgroundColor: "wheat", 
+          borderRadius: 4, 
+          height: '40%', 
+          width: '100%',
+          justifyContent: 'center',
+          }}>
+          <View style = {{flexDirection: "row", justifyContent: 'center',}}>
+            <Text style = {styles.nameText, {paddingTop: 13}}>
+              Password:
+            </Text>
+            <TextInput 
               style = {styles.nameText, styles.input}
               placeholder = "Enter password here"
               onChangeText={text => setPassword(text)}
               defaultValue={password}
               value = {password}
-              />
-            </View>
+            />
           </View>
         </View>
+      </View>
 
-        <TouchableOpacity
-          style = {styles.button}
-          onPress = {() => {testPrint()}}
-          >
-          <Text style = {{color: "snow", fontSize: 18}}>
-            {'Send'}
-          </Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style = {styles.button}
+        onPress = {() => {testPrint()}}
+        >
+        <Text style = {{color: "snow", fontSize: 18}}>
+          {'Send'}
+        </Text>
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -254,8 +248,34 @@ function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator>
-        <Stack.Screen name="Connect Bluetooth" component={bleConnectAndSend} />
-        <Stack.Screen name="Send Credentials" component={sendCreds} />
+        <Stack.Screen 
+          name="Connect Bluetooth" 
+          component={bleConnectAndSend}
+          options = {{
+            title: "Wi-Fi Connect for ESP32",
+            headerStyle: {
+              backgroundColor: "cadetblue",
+            },
+            headerTintColor: "snow",
+            headerTintStyle: {
+              fontWeight: "bold",
+            }
+          }}
+        />
+        <Stack.Screen 
+          name="Send Credentials" 
+          component={sendCreds}
+          options = {{
+            title: "Wi-Fi Connect for ESP32",
+            headerStyle: {
+              backgroundColor: "cadetblue",
+            },
+            headerTintColor: "snow",
+            headerTintStyle: {
+              fontWeight: "bold",
+            }
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
