@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import React, {
+ import React, {
   useEffect,
   useState,
 } from 'react';
@@ -20,6 +20,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
@@ -27,7 +28,6 @@ import {
 import { BleManager } from 'react-native-ble-plx';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TextInput } from 'react-native-gesture-handler';
 export const manager = new BleManager();
 
 const Stack = createNativeStackNavigator();
@@ -176,77 +176,77 @@ function sendCreds() {
   }
 
   return (
-      <KeyboardAvoidingView style={styles.container}>
-          <View style = {styles.headerStyle}>
-            <Text style = {styles.titleText}>Wi-Fi Connect for ESP32</Text>
+    <KeyboardAvoidingView style={styles.container} behavior="height" keyboardVerticalOffset={-100}>
+        <View style = {styles.headerStyle}>
+          <Text style = {styles.titleText}>Wi-Fi Connect for ESP32</Text>
+        </View>
+        <Text style = {{fontSize: 18, padding: 10}}>
+          Send Wi-Fi Credentials to Selected Device
+        </Text>
+        <View style = {{
+          backgroundColor: "tan", 
+          padding: 10,
+          borderRadius: 4, 
+          height: '25%', 
+          width: '90%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          }}>
+          <View style = {{
+            backgroundColor: "wheat",
+            padding: 5, 
+            borderRadius: 4, 
+            height: '40%', 
+            width: '100%',
+            justifyContent: 'center',
+            }}>
+            <View style = {{flexDirection: "row", justifyContent: 'center',}}>
+              <Text style = {styles.nameText, {paddingTop: 13}}>
+                Wi-Fi SSID:
+              </Text>
+              <TextInput 
+              style = { styles.nameText, styles.input }
+              placeholder = "Enter SSID here"
+              onChangeText={text => setSsid(text)}
+              defaultValue={ssid}
+              value = {ssid}
+              />
+            </View>
           </View>
-          <Text style = {{fontSize: 18, padding: 10}}>
-            Send Wi-Fi Credentials to Selected Device
+
+          <View style = {{
+            marginTop: 20,
+            padding: 5,
+            backgroundColor: "wheat", 
+            borderRadius: 4, 
+            height: '40%', 
+            width: '100%',
+            justifyContent: 'center',
+            }}>
+            <View style = {{flexDirection: "row", justifyContent: 'center',}}>
+              <Text style = {styles.nameText, {paddingTop: 13}}>
+                Password:
+              </Text>
+              <TextInput 
+              style = {styles.nameText, styles.input}
+              placeholder = "Enter password here"
+              onChangeText={text => setPassword(text)}
+              defaultValue={password}
+              value = {password}
+              />
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style = {styles.button}
+          onPress = {() => {testPrint()}}
+          >
+          <Text style = {{color: "snow", fontSize: 18}}>
+            {'Send'}
           </Text>
-            <View style = {{
-                backgroundColor: "tan", 
-                padding: 10,
-                borderRadius: 4, 
-                height: '25%', 
-                width: '90%',
-                alignItems: 'center',
-                justifyContent: 'center',
-                }}>
-                <View style = {{
-                  backgroundColor: "wheat",
-                  padding: 5, 
-                  borderRadius: 4, 
-                  height: '40%', 
-                  width: '100%',
-                  justifyContent: 'center',
-                  }}>
-                  <View style = {{flexDirection: "row", justifyContent: 'center',}}>
-                    <Text style = {styles.nameText, {paddingTop: 13}}>
-                      Wi-Fi SSID:
-                    </Text>
-                    <TextInput 
-                    style = { styles.nameText, styles.input }
-                    placeholder = "Enter SSID here"
-                    onChangeText={text => setSsid(text)}
-                    defaultValue={ssid}
-                    value = {ssid}
-                    />
-                  </View>
-                </View>
-
-                <View style = {{
-                  marginTop: 20,
-                  padding: 5,
-                  backgroundColor: "wheat", 
-                  borderRadius: 4, 
-                  height: '40%', 
-                  width: '100%',
-                  justifyContent: 'center',
-                  }}>
-                  <View style = {{flexDirection: "row", justifyContent: 'center',}}>
-                    <Text style = {styles.nameText, {paddingTop: 13}}>
-                      Password:
-                    </Text>
-                    <TextInput 
-                    style = {styles.nameText, styles.input}
-                    placeholder = "Enter password here"
-                    onChangeText={text => setPassword(text)}
-                    defaultValue={password}
-                    value = {password}
-                    />
-                  </View>
-                </View>
-              </View>
-
-          <TouchableOpacity
-            style = {styles.button}
-            onPress = {() => {testPrint()}}
-            >
-            <Text style = {{color: "snow", fontSize: 18}}>
-              {'Send'}
-            </Text>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+        </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 }
 
