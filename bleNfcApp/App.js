@@ -28,22 +28,22 @@ import {
 import { BleManager } from 'react-native-ble-plx';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-export const manager = new BleManager();
+
+const manager = new BleManager();
 
 const Stack = createNativeStackNavigator();
 
 // Request location permission from android device (needed for BT)
 const requestLocationPermission = async() => {
   
-    const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION); 
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      console.log('Location permission for bluetooth scanning granted');
-      return true;
-    } else {
-      console.log('Location permission for bluetooth scanning revoked');
-      return false;
+  const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION); 
+  if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+    console.log('Location permission for bluetooth scanning granted');
+  } else {
+    console.log('Location permission for bluetooth scanning revoked');
   }
-}
+  return granted;
+};
 
 // Format the devices in the flatlist
 const ListItem = ({ item, onPress, backgroundColor, textColor }) => (
@@ -75,9 +75,9 @@ const bleConnectAndSend = ({navigation}) => {
 
   // Turn on BT (if off) and scan for BLE devices
   const startBleScan = async() => {
-    console.log("inside start ble function");
-
     const btState = await manager.state();
+    // State can be unknown, resetting, unsupported, uanauthorized, poweredon or poweredoff
+    console.log("BT state: " + btState);
     if(btState !== 'PoweredOn'){
       await manager.enable();
     }
@@ -88,11 +88,11 @@ const bleConnectAndSend = ({navigation}) => {
         console.log("Scanning...");
         if (error) {
           console.log(error);
-          return (false);
+          manager.stopDeviceScan();
+          return;
         }
         if (device) {
-          // console.log("Device name:" + device.name);
-          // console.log("Device id:" + device.id);
+          // console.log("Device: " + JSON.stringify(device));
           const newScannedDevices = scannedDevices;
           newScannedDevices[device.id] = device;
           await setDeviceCount(Object.keys(newScannedDevices).length);
@@ -100,16 +100,25 @@ const bleConnectAndSend = ({navigation}) => {
         }
       });
     }
-    return (true);
   };
 
   // Connect to selected BLE device
   const connectToBleDevice = async(device) => {
-    console.log("connecting to: " + device.name);
-    const connect = manager.connectToDevice(device.id, {autoConnect: false});
-    if(connect){
+    manager.stopDeviceScan();
+    console.log("connecting to: " + device.name + device.id);
+    await device.connect();
+    // Verify device is connected
+    var connect = await device.isConnected();
+    console.log(JSON.stringify(connect));
+    if(connect === true){
       console.log("Connection established...");
+      console.log("Discovering services and characteristics");
+      await device.discoverAllServicesAndCharacteristics();
+      const services = await device.services();
+      console.log("services: ");
+      console.log(services);     
     }
+    
     navigation.navigate('Send Credentials');
     return true;
   }
@@ -287,14 +296,6 @@ const styles = StyleSheet.create({
     backgroundColor: "snow",
     alignItems: "center",
   },
-  headerStyle: {
-    flex: 0.15,
-    width: '100%',
-    height: 45,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "cadetblue",
-  },
   button: {
     marginTop: 50,
     marginBottom: 20,
@@ -317,10 +318,6 @@ const styles = StyleSheet.create({
   },
   subText: {
     fontSize: 14,
-  },
-  titleText: {
-    fontSize: 28,
-    color: "snow",
   },
   input: {
     backgroundColor: "papayawhip", 
