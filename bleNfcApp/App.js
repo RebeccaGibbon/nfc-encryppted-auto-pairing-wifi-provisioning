@@ -6,283 +6,514 @@
  * @flow strict-local
  */
 
- import React, {
-  useEffect,
-  useState,
-} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
-  PermissionsAndroid,
+  NativeEventEmitter,
+  NativeModules,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import { BleManager } from 'react-native-ble-plx';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import AwsFreertos, {
+  Characteristic,
+  eventKeys,
+} from 'react-native-aws-freertos';
 
-const manager = new BleManager();
+import {LogBox} from 'react-native';
+LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
+// LogBox.ignoreAllLogs(); //Ignore all log notifications
 
 const Stack = createNativeStackNavigator();
 
-// Request location permission from android device (needed for BT)
-const requestLocationPermission = async() => {
-  
-  const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION); 
-  if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-    console.log('Location permission for bluetooth scanning granted');
-  } else {
-    console.log('Location permission for bluetooth scanning revoked');
-  }
-  return granted;
-};
-
-// Format the devices in the flatlist
-const ListItem = ({ item, onPress, backgroundColor, textColor }) => (
-  <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
-    <Text style={[styles.nameText, textColor]}>Name: {item.name}</Text>
-    <Text style={[styles.subText, textColor]}>MAC address/UUID: {item.id}</Text>
-  </TouchableOpacity>
-);
-
-const bleConnectAndSend = ({navigation}) => {
-  const [deviceCount, setDeviceCount] = useState(0);
-  const [scannedDevices, setScannedDevices] = useState({});
-  const [logData, setLogData] = useState([]);
-  const [logCount, setLogCount] = useState(0);
+// Function to handle BLE scanning and connecting
+const bluetoothScreen = ({navigation}) => {
+  const [result, setResult] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [connectingToDevice, setConnectingToDevice] = useState(null);
 
   useEffect(() => {
-    manager.onStateChange((state) => {
-      const subscription = manager.onStateChange(async (state) => {
-        console.log(state);
-        const newLogData = logData;
-        newLogData.push(state);
-        await setLogCount(newLogData.length);
-        await setLogData(newLogData);
-        subscription.remove();
-      }, true);
-      return () => subscription.remove();
-    });
-  }, [manager]);
+    try {
+      // Always request BT and location permissions from smartphone
+      AwsFreertos.requestBtPermissions();
+      const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
+      // Create an array of important events and relevant actions to be taken if they occur
+      const btEvents = [];
+      btEvents.push(
+        eventEmitter.addListener(eventKeys.DID_DISCOVERED_DEVICE, device => {
+          if (Array.isArray(device)) {
+            setResult([...result, ...device]);
+          } else {
+            if (result.some(r => device.macAddr === r.macAddr)) return;
+            setResult([...result, device]);
+          }
+        }),
+      );
+      btEvents.push(
+        eventEmitter.addListener(eventKeys.DID_DISCONNECT_DEVICE, device => {
+          console.warn(
+            'A device has been disconnected - MAC address: ' + device.macAddr,
+          );
+        }),
+      );
+      btEvents.push(
+        eventEmitter.addListener(eventKeys.DID_CONNECT_DEVICE, device => {
+          console.log('Connected');
+          setConnectingToDevice(false);
+          setTimeout(() => {
+            navigation.navigate('Send Credentials', {
+              deviceMacAddress: device.macAddr,
+              deviceName: device.name,
+            });
+          }, 1000);
+        }),
+      );
+      btEvents.push(
+        eventEmitter.addListener(
+          eventKeys.DID_FAIL_TO_CONNECT_DEVICE,
+          device => {
+            console.warn(
+              'Failed to connect to device - MAC address: ' + device.macAddr,
+            );
+          },
+        ),
+      );
+      return () => {
+        AwsFreertos.stopScanBtDevices();
+        btEvents.forEach(btEvent => btEvent.remove());
+      };
+    } catch (error) {
+      console.warn(error);
+    }
+  }, []);
 
-  // Turn on BT (if off) and scan for BLE devices
-  const startBleScan = async() => {
-    const btState = await manager.state();
-    // State can be unknown, resetting, unsupported, uanauthorized, poweredon or poweredoff
-    console.log("BT state: " + btState);
-    if(btState !== 'PoweredOn'){
-      await manager.enable();
+  // BLE scan timeout in ms
+  let scanTimeout = null;
+
+  const onScanBtDevices = () => {
+    if (scanTimeout !== null) {
+      clearTimeout(scanTimeout);
     }
-    console.log("requesting BLE permission");
-    const permission = await requestLocationPermission();
-    if (permission) {
-      manager.startDeviceScan(null, null, async (error, device) => {
-        console.log("Scanning...");
-        if (error) {
-          console.log(error);
-          manager.stopDeviceScan();
-          return;
-        }
-        if (device) {
-          // console.log("Device: " + JSON.stringify(device));
-          const newScannedDevices = scannedDevices;
-          newScannedDevices[device.id] = device;
-          await setDeviceCount(Object.keys(newScannedDevices).length);
-          await setScannedDevices(scannedDevices);
-        }
-      });
-    }
+    console.log('Scanning...');
+    setScanning(true);
+    scanTimeout = setInterval(() => setScanning(false), 10000);
+    AwsFreertos.startScanBtDevices();
+  };
+  const onConnectToDevice = device => () => {
+    // if (connectingToDevice) return;
+    // setConnectingToDevice(device);
+    AwsFreertos.connectDevice(device.macAddr);
+    console.log('MAC address: ' + device.macAddr);
   };
 
-  // Connect to selected BLE device
-  const connectToBleDevice = async(device) => {
-    manager.stopDeviceScan();
-    console.log("connecting to: " + device.name + device.id);
-    await device.connect();
-    // Verify device is connected
-    var connect = await device.isConnected();
-    console.log(JSON.stringify(connect));
-    if(connect === true){
-      console.log("Connection established...");
-      console.log("Discovering services and characteristics");
-      await device.discoverAllServicesAndCharacteristics();
-      const services = await device.services();
-      console.log("services: ");
-      console.log(services);     
-    }
-    
-    navigation.navigate('Send Credentials');
-    return true;
-  }
-  
-  // Switch the text and background colour of a listed item on press 
-  const renderListItem = ({ item }) => {
-    const backgroundColor = item.id === scannedDevices.name ? "peru" : "papayawhip";
-    const color = item.id === scannedDevices.name ? 'white' : 'grey';
-    manager.stopDeviceScan();
+  // Format the devices in the flatlist
+  const ListItem = ({item, onPress, backgroundColor, textColor}) => (
+    <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
+      <Text style={[styles.nameText, textColor]}>Name: {item.name}</Text>
+      <Text style={[styles.subText, textColor]}>
+        MAC address/UUID: {item.macAddr}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderListItem = ({item}) => {
+    const backgroundColor = item.name === result.name ? 'peru' : 'papayawhip';
+    const color = item.name === result.name ? 'white' : 'grey';
 
     return (
       <ListItem
         item={item}
-        onPress={() => connectToBleDevice(item)}
-        backgroundColor={{ backgroundColor }}
-        textColor={{ color }}
+        onPress={onConnectToDevice(item)}
+        backgroundColor={{backgroundColor}}
+        textColor={{color}}
       />
     );
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity
-        style = {styles.button}
-        onPress = {() => startBleScan()}
-        >
-        <Text style = {{color: "snow", fontSize: 18}}>
+      <TouchableOpacity style={styles.button} onPress={onScanBtDevices}>
+        <Text style={{color: 'snow', fontSize: 18}}>
           {'Scan for BLE Devices'}
         </Text>
       </TouchableOpacity>
-      <FlatList
-        data={Object.values(scannedDevices)}
-        renderItem={renderListItem}
-      />
+      <FlatList data={Object.values(result)} renderItem={renderListItem} />
     </SafeAreaView>
   );
 };
 
-// Allow user to input and send Wi-Fi credentials to paired BLE device
-function sendCreds() {
+// Scan and list nearby WiFi networks
+const wifiScreen = ({route, navigation}) => {
+  const uniqBy = (a, compareFun) => {
+    return a.reduce((accumulator, currentValue) => {
+      if (!accumulator.some(item => compareFun(item, currentValue))) {
+        return [...accumulator, currentValue];
+      }
+      return accumulator;
+    }, []);
+  };
 
-  const [ssid, setSsid] = useState('');
-  const [password, setPassword] = useState('');
+  const [isScanningDeviceWifiNetworks, setIsScanningDeviceWifiNetworks] =
+    useState(false);
+  const [selectedNetwork, setSelectedNetwork] = useState(null);
+  const [errorSavingNetwork, setErrorSavingNetwork] = useState(false);
+  const [availableWifiNetworks, setAvailableWifiNetworks] = useState([]);
+  const [networkToDelete, setNetworkToDelete] = useState(null);
+  const {deviceMacAddress} = route.params;
+  const wifiAvailableScannedNetworks = [];
 
-  const testPrint = async() => {
-    console.log("entered test function...");
-    await setSsid(ssid);
-    await setPassword(password);
-    // console.log("SSID:" + ssid);
-    // console.log( "Password:" + password);
-
-    const message = {
-      "clientcredentialWIFI_SSID" : ssid,
-      "clientcredentialWIFI_PASSWORD" : password
-    };
-    console.log(JSON.stringify(message));
-
-    manager.writeCharacteristicWithResponseForDevice(device.id, service.uuid, characteristic.uuid, JSON.stringify(message));
-
-    return;
-  }
+  useEffect(() => {
+    try {
+      let interval = setInterval(() => {
+        AwsFreertos.getConnectedDeviceAvailableNetworks(deviceMacAddress);
+        AwsFreertos.getGattCharacteristicsFromServer(
+          deviceMacAddress,
+          'ad3cee4a-c6d0-4b38-aed6-5459813c5847',
+        );
+      }, 2000);
+      setIsScanningDeviceWifiNetworks(true);
+      const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
+      const wifiEvents = [];
+      const readCharacteristicsEvent = eventEmitter.addListener(
+        eventKeys.DID_READ_CHARACTERISTIC_FROM_SERVICE,
+        newCharacteristic => {
+          console.log('Reading characteristic: ', newCharacteristic);
+        },
+      );
+      wifiEvents.push(
+        eventEmitter.addListener(eventKeys.DID_LIST_NETWORK, network => {
+          console.log(network);
+          if (Array.isArray(network))
+            network.forEach(net => wifiAvailableScannedNetworks.push(net));
+          else wifiAvailableScannedNetworks.push(network);
+        }),
+      );
+      wifiEvents.push(
+        eventEmitter.addListener(eventKeys.DID_SAVE_NETWORK, wifi => {
+          setErrorSavingNetwork(false);
+          // navigation.navigate(routes.successScreen, {
+          //   deviceMacAddress,
+          //   wifiSsid: wifi && wifi.ssid,
+          // });
+        }),
+      );
+      wifiEvents.push(
+        eventEmitter.addListener(eventKeys.ERROR_SAVE_NETWORK, () => {
+          setErrorSavingNetwork(true);
+        }),
+      );
+      wifiEvents.push(
+        eventEmitter.addListener(eventKeys.DID_DELETE_NETWORK, () => {
+          setNetworkToDelete(null);
+          setAvailableWifiNetworks([]);
+          AwsFreertos.getConnectedDeviceAvailableNetworks(deviceMacAddress);
+        }),
+      );
+      const wifiInterval = setInterval(() => {
+        setAvailableWifiNetworks(
+          uniqBy(wifiAvailableScannedNetworks, (a, b) => a.bssid === b.bssid),
+        );
+      }, 2000);
+      return () => {
+        clearInterval(interval);
+        clearInterval(wifiInterval);
+        readCharacteristicsEvent.remove();
+        wifiEvents.forEach(event => event.remove());
+      };
+    } catch (error) {
+      console.warn(error);
+    }
+  }, []);
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="height" keyboardVerticalOffset={-100}>
-      <Text style = {{fontSize: 18, padding: 10}}>
+    <SafeAreaView style={styles.container}>
+      {errorSavingNetwork && <Text>Error saving network</Text>}
+      {isScanningDeviceWifiNetworks && (
+        <Text style={{fontSize: 18, paddingTop: 20}}>
+          Scanning for Wi-Fi networks...
+        </Text>
+      )}
+      {availableWifiNetworks && availableWifiNetworks.length > 0 && (
+        <ScrollView
+          style={{
+            borderBottomWidth: 1,
+            backgroundColor: 'snow',
+            textColor: 'grey',
+            fontSize: 16,
+          }}>
+          {availableWifiNetworks.map((network, k) => (
+            <View key={network.bssid}>
+              <View key={network.bssid} style={styles.networkTextContainer}>
+                <TouchableOpacity
+                  style={{
+                    justifyContent: 'center',
+                    borderRadius: 4,
+                    backgroundColor: 'papayawhip',
+                    height: 50,
+                    width: 300,
+                  }}
+                  onPress={() => {
+                    // network.connected
+                    //   ? disconnectFromNetwork(network)
+                    //   : selectedNetwork &&
+                    //     selectedNetwork.bssid === network.bssid
+                    //   ? setSelectedNetwork(null)
+                    //   : setSelectedNetwork(network);
+                    navigation.navigate('Send Password', {
+                      deviceMacAddress,
+                      selectedBssid: network.bssid,
+                      selectedSsid: network.ssid,
+                    });
+                  }}>
+                  <Text style={styles.subText}>{network.ssid}</Text>
+                </TouchableOpacity>
+                {/* {network.connected && (
+                   <TouchableOpacity
+                     onPress={() => {
+                       navigation.navigate('Send Password', {
+                         deviceMacAddress,
+                         wifiSsid: network.ssid,
+                       });
+                     }}>
+                     <Text>Skip</Text>
+                   </TouchableOpacity> */}
+                {/* )} */}
+              </View>
+              {/* {selectedNetwork && selectedNetwork.bssid === network.bssid && (
+                 <></>
+               )} */}
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+};
+
+const enterWifiPassword = ({route, navigation}) => {
+  const [pwValue, setPwValue] = useState(null);
+  const {deviceMacAddress, selectedBssid, selectedSsid} = route.params;
+  console.log('Params:' + JSON.stringify(route.params));
+  console.log('Mac Address: ' + deviceMacAddress);
+  console.log('Wi-Fi SSID: ' + selectedSsid);
+  console.log('Wi-Fi BSSID: ' + selectedBssid);
+
+  const onConnectToNetwork = networkBsid => () => {
+    AwsFreertos.saveNetworkOnConnectedDevice(
+      deviceMacAddress,
+      networkBsid,
+      pwValue,
+    );
+    navigation.navigate('Provision', {deviceMacAddress, selectedSsid});
+  };
+
+  // Do not need to implement this as yet.
+  // This function deletes a Wi-Fi network that was saved on the ESP32
+  // const disconnectFromNetwork = network => {
+  //   if (networkToDelete) return;
+  //   setNetworkToDelete(network);
+  //   AwsFreertos.disconnectNetworkOnConnectedDevice(
+  //     deviceMacAddress,
+  //     network.index,
+  //   );
+  // };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior="height"
+      keyboardVerticalOffset={-100}>
+      <Text style={{fontSize: 18, padding: 10}}>
         Send Wi-Fi Credentials to Selected Device
       </Text>
-      <View style = {{
-        backgroundColor: "tan", 
-        padding: 10,
-        borderRadius: 4, 
-        height: '25%', 
-        width: '90%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        }}>
-        <View style = {{
-          backgroundColor: "wheat",
-          padding: 5, 
-          borderRadius: 4, 
-          height: '40%', 
-          width: '100%',
+      <View
+        style={{
+          backgroundColor: 'tan',
+          padding: 10,
+          borderRadius: 4,
+          height: '25%',
+          width: '90%',
+          alignItems: 'center',
           justifyContent: 'center',
+        }}>
+        <View
+          style={{
+            backgroundColor: 'wheat',
+            padding: 5,
+            borderRadius: 4,
+            height: '40%',
+            width: '100%',
+            justifyContent: 'center',
           }}>
-          <View style = {{flexDirection: "row", justifyContent: 'center',}}>
-            <Text style = {styles.nameText, {paddingTop: 13}}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}>
+            <Text style={(styles.subText, {paddingVertical: 10})}>
               Wi-Fi SSID:
             </Text>
-            <TextInput 
-              style = { styles.nameText, styles.input }
-              placeholder = "Enter SSID here"
-              onChangeText={text => setSsid(text)}
-              defaultValue={ssid}
-              value = {ssid}
-            />
+            <Text style={(styles.subText, styles.input)}>{selectedSsid}</Text>
           </View>
         </View>
 
-        <View style = {{
-          marginTop: 20,
-          padding: 5,
-          backgroundColor: "wheat", 
-          borderRadius: 4, 
-          height: '40%', 
-          width: '100%',
-          justifyContent: 'center',
+        <View
+          style={{
+            marginTop: 20,
+            padding: 5,
+            backgroundColor: 'wheat',
+            borderRadius: 4,
+            height: '40%',
+            width: '100%',
+            justifyContent: 'center',
           }}>
-          <View style = {{flexDirection: "row", justifyContent: 'center',}}>
-            <Text style = {styles.nameText, {paddingTop: 13}}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}>
+            <Text style={(styles.subText, {paddingVertical: 10})}>
               Password:
             </Text>
-            <TextInput 
-              style = {styles.nameText, styles.input}
-              placeholder = "Enter password here"
-              onChangeText={text => setPassword(text)}
-              defaultValue={password}
-              value = {password}
+            <TextInput
+              style={(styles.subText, styles.input)}
+              placeholder="Enter password here"
+              onChangeText={val => setPwValue(val)}
+              defaultValue={pwValue}
+              value={pwValue}
             />
           </View>
         </View>
       </View>
 
       <TouchableOpacity
-        style = {styles.button}
-        onPress = {() => {testPrint()}}
-        >
-        <Text style = {{color: "snow", fontSize: 18}}>
-          {'Send'}
-        </Text>
+        style={styles.button}
+        onPress={onConnectToNetwork(selectedBssid)}>
+        <Text style={{color: 'snow', fontSize: 18}}>{'Send'}</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
-}
+};
+
+const wifiProvision = ({route, navigation}) => {
+  const {deviceMacAddress, wifiSsid} = route.params;
+  const [characteristics, setCharacteristic] = useState(null);
+  const intervalCharacteristics = [];
+
+  useEffect(() => {
+    AwsFreertos.getGattCharacteristicsFromServer(
+      deviceMacAddress,
+      'ad3cee4a-c6d0-4b38-aed6-5459813c5847',
+    );
+    const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
+    const event = eventEmitter.addListener(
+      eventKeys.DID_READ_CHARACTERISTIC_FROM_SERVICE,
+      newCharacteristic => {
+        if (newCharacteristic.uuid === '38c4fb0f-b43b-493f-94a1-1634cbc9d66f')
+          intervalCharacteristics.push(
+            Object.assign(Object.assign({}, newCharacteristic), {
+              value: newCharacteristic.value
+                .map(i => String.fromCharCode(i))
+                .join(''),
+            }),
+          );
+        else intervalCharacteristics.push(newCharacteristic);
+      },
+    );
+
+    const interval = setInterval(() => {
+      setCharacteristic(intervalCharacteristics);
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+      event.remove();
+    };
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Text>Device with Mac Adrr: {deviceMacAddress}</Text>
+      <Text>Connected to: {wifiSsid}</Text>
+      {characteristics &&
+        characteristics.map(characteristic => (
+          <View
+            // style={styles.characteristicsContainer}
+            key={characteristic.uuid}>
+            <Text>Characteristic:</Text>
+            <Text>uuid: {characteristic.uuid}</Text>
+            <Text>value: {characteristic.value}</Text>
+          </View>
+        ))}
+    </SafeAreaView>
+  );
+};
 
 function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator>
-        <Stack.Screen 
-          name="Connect Bluetooth" 
-          component={bleConnectAndSend}
-          options = {{
-            title: "Wi-Fi Connect for ESP32",
+        <Stack.Screen
+          name="Connect Bluetooth"
+          component={bluetoothScreen}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
-              backgroundColor: "cadetblue",
+              backgroundColor: 'cadetblue',
             },
-            headerTintColor: "snow",
+            headerTintColor: 'snow',
             headerTintStyle: {
-              fontWeight: "bold",
-            }
+              fontWeight: 'bold',
+            },
           }}
         />
-        <Stack.Screen 
-          name="Send Credentials" 
-          component={sendCreds}
-          options = {{
-            title: "Wi-Fi Connect for ESP32",
+        <Stack.Screen
+          name="Send Credentials"
+          component={wifiScreen}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
-              backgroundColor: "cadetblue",
+              backgroundColor: 'cadetblue',
             },
-            headerTintColor: "snow",
+            headerTintColor: 'snow',
             headerTintStyle: {
-              fontWeight: "bold",
-            }
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Stack.Screen
+          name="Send Password"
+          component={enterWifiPassword}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
+            headerStyle: {
+              backgroundColor: 'cadetblue',
+            },
+            headerTintColor: 'snow',
+            headerTintStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Stack.Screen
+          name="Provision"
+          component={wifiProvision}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
+            headerStyle: {
+              backgroundColor: 'cadetblue',
+            },
+            headerTintColor: 'snow',
+            headerTintStyle: {
+              fontWeight: 'bold',
+            },
           }}
         />
       </Stack.Navigator>
@@ -293,8 +524,8 @@ function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "snow",
-    alignItems: "center",
+    backgroundColor: 'snow',
+    alignItems: 'center',
   },
   button: {
     marginTop: 50,
@@ -302,9 +533,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 30,
     borderRadius: 4,
-    backgroundColor: "tan",
-    alignItems: "center",
-    minWidth: "48%",
+    backgroundColor: 'tan',
+    alignItems: 'center',
+    minWidth: '48%',
   },
   item: {
     padding: 20,
@@ -320,10 +551,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   input: {
-    backgroundColor: "papayawhip", 
+    backgroundColor: 'papayawhip',
     borderRadius: 4,
     width: '75%',
     justifyContent: 'center',
+    padding: 10,
+  },
+  networkTextContainer: {
+    paddingVertical: 16,
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });
 
