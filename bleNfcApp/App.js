@@ -58,9 +58,7 @@ const bluetoothScreen = ({navigation}) => {
       );
       btEvents.push(
         eventEmitter.addListener(eventKeys.DID_DISCONNECT_DEVICE, device => {
-          console.warn(
-            'A device has been disconnected - MAC address: ' + device.macAddr,
-          );
+          alert('Device disconnected. \n Try again.');
         }),
       );
       btEvents.push(
@@ -107,8 +105,6 @@ const bluetoothScreen = ({navigation}) => {
     AwsFreertos.startScanBtDevices();
   };
   const onConnectToDevice = device => () => {
-    // if (connectingToDevice) return;
-    // setConnectingToDevice(device);
     AwsFreertos.connectDevice(device.macAddr);
     console.log('MAC address: ' + device.macAddr);
   };
@@ -150,7 +146,7 @@ const bluetoothScreen = ({navigation}) => {
 };
 
 // Scan and list nearby WiFi networks
-const wifiScreen = ({route, navigation}) => {
+const wifiScan = ({route, navigation}) => {
   const uniqBy = (a, compareFun) => {
     return a.reduce((accumulator, currentValue) => {
       if (!accumulator.some(item => compareFun(item, currentValue))) {
@@ -173,20 +169,10 @@ const wifiScreen = ({route, navigation}) => {
     try {
       let interval = setInterval(() => {
         AwsFreertos.getConnectedDeviceAvailableNetworks(deviceMacAddress);
-        AwsFreertos.getGattCharacteristicsFromServer(
-          deviceMacAddress,
-          'ad3cee4a-c6d0-4b38-aed6-5459813c5847',
-        );
       }, 2000);
       setIsScanningDeviceWifiNetworks(true);
       const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
       const wifiEvents = [];
-      const readCharacteristicsEvent = eventEmitter.addListener(
-        eventKeys.DID_READ_CHARACTERISTIC_FROM_SERVICE,
-        newCharacteristic => {
-          console.log('Reading characteristic: ', newCharacteristic);
-        },
-      );
       wifiEvents.push(
         eventEmitter.addListener(eventKeys.DID_LIST_NETWORK, network => {
           console.log(network);
@@ -198,10 +184,11 @@ const wifiScreen = ({route, navigation}) => {
       wifiEvents.push(
         eventEmitter.addListener(eventKeys.DID_SAVE_NETWORK, wifi => {
           setErrorSavingNetwork(false);
-          // navigation.navigate(routes.successScreen, {
-          //   deviceMacAddress,
-          //   wifiSsid: wifi && wifi.ssid,
-          // });
+          AwsFreertos.disconnectDevice(deviceMacAddress);
+          navigation.navigate('Success', {
+            deviceMacAddress,
+            wifiSsid: wifi && wifi.ssid,
+          });
         }),
       );
       wifiEvents.push(
@@ -221,10 +208,10 @@ const wifiScreen = ({route, navigation}) => {
           uniqBy(wifiAvailableScannedNetworks, (a, b) => a.bssid === b.bssid),
         );
       }, 2000);
+
       return () => {
         clearInterval(interval);
         clearInterval(wifiInterval);
-        readCharacteristicsEvent.remove();
         wifiEvents.forEach(event => event.remove());
       };
     } catch (error) {
@@ -260,35 +247,16 @@ const wifiScreen = ({route, navigation}) => {
                     width: 300,
                   }}
                   onPress={() => {
-                    // network.connected
-                    //   ? disconnectFromNetwork(network)
-                    //   : selectedNetwork &&
-                    //     selectedNetwork.bssid === network.bssid
-                    //   ? setSelectedNetwork(null)
-                    //   : setSelectedNetwork(network);
                     navigation.navigate('Send Password', {
                       deviceMacAddress,
                       selectedBssid: network.bssid,
                       selectedSsid: network.ssid,
+                      isConnected: network.connected,
                     });
                   }}>
                   <Text style={styles.subText}>{network.ssid}</Text>
                 </TouchableOpacity>
-                {/* {network.connected && (
-                   <TouchableOpacity
-                     onPress={() => {
-                       navigation.navigate('Send Password', {
-                         deviceMacAddress,
-                         wifiSsid: network.ssid,
-                       });
-                     }}>
-                     <Text>Skip</Text>
-                   </TouchableOpacity> */}
-                {/* )} */}
               </View>
-              {/* {selectedNetwork && selectedNetwork.bssid === network.bssid && (
-                 <></>
-               )} */}
             </View>
           ))}
         </ScrollView>
@@ -297,9 +265,11 @@ const wifiScreen = ({route, navigation}) => {
   );
 };
 
-const enterWifiPassword = ({route, navigation}) => {
+// Transfer credentials to ESP32
+const wifiProvision = ({route, navigation}) => {
   const [pwValue, setPwValue] = useState(null);
-  const {deviceMacAddress, selectedBssid, selectedSsid} = route.params;
+  const {deviceMacAddress, selectedBssid, selectedSsid, isConnected} =
+    route.params;
   console.log('Params:' + JSON.stringify(route.params));
   console.log('Mac Address: ' + deviceMacAddress);
   console.log('Wi-Fi SSID: ' + selectedSsid);
@@ -311,7 +281,6 @@ const enterWifiPassword = ({route, navigation}) => {
       networkBsid,
       pwValue,
     );
-    navigation.navigate('Provision', {deviceMacAddress, selectedSsid});
   };
 
   // Do not need to implement this as yet.
@@ -329,7 +298,7 @@ const enterWifiPassword = ({route, navigation}) => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior="height"
-      keyboardVerticalOffset={-100}>
+      keyboardVerticalOffset={-110}>
       <Text style={{fontSize: 18, padding: 10}}>
         Send Wi-Fi Credentials to Selected Device
       </Text>
@@ -402,57 +371,21 @@ const enterWifiPassword = ({route, navigation}) => {
   );
 };
 
-const wifiProvision = ({route, navigation}) => {
+const successScreen = ({route, navigation}) => {
   const {deviceMacAddress, wifiSsid} = route.params;
-  const [characteristics, setCharacteristic] = useState(null);
-  const intervalCharacteristics = [];
-
-  useEffect(() => {
-    AwsFreertos.getGattCharacteristicsFromServer(
-      deviceMacAddress,
-      'ad3cee4a-c6d0-4b38-aed6-5459813c5847',
-    );
-    const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
-    const event = eventEmitter.addListener(
-      eventKeys.DID_READ_CHARACTERISTIC_FROM_SERVICE,
-      newCharacteristic => {
-        if (newCharacteristic.uuid === '38c4fb0f-b43b-493f-94a1-1634cbc9d66f')
-          intervalCharacteristics.push(
-            Object.assign(Object.assign({}, newCharacteristic), {
-              value: newCharacteristic.value
-                .map(i => String.fromCharCode(i))
-                .join(''),
-            }),
-          );
-        else intervalCharacteristics.push(newCharacteristic);
-      },
-    );
-
-    const interval = setInterval(() => {
-      setCharacteristic(intervalCharacteristics);
-    }, 2000);
-
-    return () => {
-      clearInterval(interval);
-      event.remove();
-    };
-  }, []);
-
   return (
-    <SafeAreaView style={styles.container}>
-      <Text>Device with Mac Adrr: {deviceMacAddress}</Text>
-      <Text>Connected to: {wifiSsid}</Text>
-      {characteristics &&
-        characteristics.map(characteristic => (
-          <View
-            // style={styles.characteristicsContainer}
-            key={characteristic.uuid}>
-            <Text>Characteristic:</Text>
-            <Text>uuid: {characteristic.uuid}</Text>
-            <Text>value: {characteristic.value}</Text>
-          </View>
-        ))}
-    </SafeAreaView>
+    <View style={styles.container}>
+      <View
+        style={
+          (styles.button, {alignItems: 'center', backgroundColor: 'snow'})
+        }>
+        <Text style={styles.nameText}>Wi-Fi provisioning success!</Text>
+        <Text style={styles.nameText}>
+          The ESP32 with MAC address {deviceMacAddress} is now connected to{' '}
+          {wifiSsid}
+        </Text>
+      </View>
+    </View>
   );
 };
 
@@ -476,7 +409,7 @@ function App() {
         />
         <Stack.Screen
           name="Send Credentials"
-          component={wifiScreen}
+          component={wifiScan}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
@@ -490,7 +423,7 @@ function App() {
         />
         <Stack.Screen
           name="Send Password"
-          component={enterWifiPassword}
+          component={wifiProvision}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
@@ -503,8 +436,8 @@ function App() {
           }}
         />
         <Stack.Screen
-          name="Provision"
-          component={wifiProvision}
+          name="Success"
+          component={successScreen}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
@@ -539,7 +472,6 @@ const styles = StyleSheet.create({
   },
   item: {
     padding: 20,
-    // width: 275,
     marginVertical: 8,
     marginHorizontal: 16,
     borderRadius: 4,
