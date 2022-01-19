@@ -12,8 +12,8 @@
 #include "driver/gpio.h"
 
 // Define pins for using SPI2 bus
-#ifdef CONFIG_IDF_TARGET_ESP32
 #define PN532_HOST    HSPI_HOST
+#define DMA_CHAN    2
 
 #define PIN_NUM_MISO 12
 #define PIN_NUM_MOSI 13
@@ -21,7 +21,7 @@
 #define PIN_NUM_CS   15 // SS
 
 
-void main (void)
+int main (void)
 {
     esp_err_t ret;
     spi_device_handle_t spi;
@@ -50,13 +50,14 @@ void main (void)
     };
 
     // Initialise spi bus
-    ret = spi_bus_initialize(PN532_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    ret = spi_bus_initialize(PN532_HOST, &buscfg, DMA_CHAN);
     ESP_ERROR_CHECK(ret);
 
     // Register device
-    ret = spi_bus_add_device(SPI2_HOST, &devcfg, &handle);
+    ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
 
     // Interact with device
 
+    return 0;
 }

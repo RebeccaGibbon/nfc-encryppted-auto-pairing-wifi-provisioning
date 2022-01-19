@@ -4,3 +4,6 @@
 [submodule "embeddedSystem/--recursive"]
 	path = embeddedSystem/--recursive
 	url = git@github.com:aws/amazon-freertos.git
+[submodule "embeddedSystem/amazon-freertos"]
+	path = embeddedSystem/amazon-freertos
+	url = git@github.com:aws/amazon-freertos.git
