@@ -1,17 +1,11 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(esp_idf_dir "${CMAKE_CURRENT_LIST_DIR}/amazon-freertos/vendors/espressif/esp-idf")
-include(${esp_idf_dir}/tools/cmake/idf.cmake)
-string(FIND "${CMAKE_TOOLCHAIN_FILE}" "esp32" SOC_TOOLCHAIN_ESP32)
-
 project(ble_nfc_app)
+
+# add_executable(ble_nfc_demo  src/spi_pn532.c)
 
 # Tell IDF build to link against this target.
 set(IDF_PROJECT_EXECUTABLE ble_nfc_demo)
-get_filename_component(
-    IDF_EXECUTABLE_SRCS
-    "src/spi_pn532.c" ABSOLUTE
-    )
 
 # As of now there's no offical way to redefine config files outside of FreeRTOS source tree.
 # This is a temporary approach to inject an include path so that this takes precedence over the
