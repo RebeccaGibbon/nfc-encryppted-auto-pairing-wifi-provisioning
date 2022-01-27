@@ -54,7 +54,7 @@ int main (void)
     ESP_ERROR_CHECK(ret);
 
     // Register device
-    ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spi);
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
 
     // Interact with device

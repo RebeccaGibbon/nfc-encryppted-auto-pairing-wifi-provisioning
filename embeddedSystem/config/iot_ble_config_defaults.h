@@ -61,8 +61,6 @@
 
 /**
  * @brief Set to true if user wants to send its own advertisement message.
- * If this configuration is set to 1 then user needs to implement IotBle_SetCustomAdvCb
- * hook in the application.
  */
 #ifndef IOT_BLE_SET_CUSTOM_ADVERTISEMENT_MSG
     #define IOT_BLE_SET_CUSTOM_ADVERTISEMENT_MSG    ( 0 )
@@ -74,7 +72,13 @@
  * @brief Define the UUID that is going to be advertised.
  *
  */
-#ifndef IOT_BLE_ADVERTISING_UUID
+#if ( !defined( IOT_BLE_ADVERTISING_UUID ) ) || ( !defined( IOT_BLE_ADVERTISING_UUID_SIZE ) )
+    #ifdef IOT_BLE_ADVERTISING_UUID
+        #error "IOT_BLE_ADVERTISING_UUID_SIZE need to be defined"
+    #endif
+    #ifdef IOT_BLE_ADVERTISING_UUID_SIZE
+        #error "IOT_BLE_ADVERTISING_UUID need to be defined"
+    #endif
     #define IOT_BLE_ADVERTISING_UUID         IOT_BLE_DEVICE_INFO_SERVICE_UUID
     #define IOT_BLE_ADVERTISING_UUID_SIZE    16
 #endif
@@ -360,6 +364,10 @@
  */
 #ifndef IOT_BLE_DATA_TRANSFER_RX_BUFFER_SIZE
     #define IOT_BLE_DATA_TRANSFER_RX_BUFFER_SIZE    ( 1024 )
+#endif
+
+#ifndef IOT_BLE_NETWORK_INTERFACE_BUFFER_SIZE
+    #define IOT_BLE_NETWORK_INTERFACE_BUFFER_SIZE    ( 256U )
 #endif
 
 /**
