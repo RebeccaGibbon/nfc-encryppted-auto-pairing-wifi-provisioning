@@ -35,6 +35,10 @@
 /* Device name for this peripheral device. */
 #define IOT_BLE_DEVICE_COMPLETE_LOCAL_NAME                      "ESP32"
 
+/* Enable WIFI provisioning GATT service. */
+// #define IOT_BLE_ENABLE_WIFI_PROVISIONING         ( 1 )
+// #define IOT_BLE_ENABLE_GATT_DEMO                 ( 0 )
+
 /**
  * Buffer size for network interface shim layer. The config is to
  * accomodate OTA blocks of size 4096 bytes ( otaconfigLOG2_FILE_BLOCK_SIZE ).

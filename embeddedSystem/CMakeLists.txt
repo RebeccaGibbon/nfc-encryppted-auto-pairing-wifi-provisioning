@@ -11,7 +11,7 @@ set(IDF_PROJECT_EXECUTABLE ble_nfc_demo)
 # As of now there's no offical way to redefine config files outside of FreeRTOS source tree.
 # This is a temporary approach to inject an include path so that this takes precedence over the
 # config file directory inside FreeRTOS.
-include_directories(BEFORE config)
+include_directories(BEFORE amazon-freertos-config)
 include_directories(BEFORE include)
 
 # AFR_BOARD tells which board to target.
@@ -26,4 +26,5 @@ target_link_libraries(ble_nfc_demo PRIVATE AFR::demo_core_mqtt
     AFR::demo_wifi_provisioning
     AFR::demo_numeric_comparison
     AFR::common_io
+    AFR::wifi
 )

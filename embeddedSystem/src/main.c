@@ -135,6 +135,8 @@ int app_main( void )
 
     prvMiscInitialization();
 
+    configPRINTF( ( "Entered main function. \n " ) );
+
     if( SYSTEM_Init() == pdPASS )
     {
         /* A simple example to demonstrate key and certificate provisioning in
@@ -145,6 +147,7 @@ int app_main( void )
         #if BLE_ENABLED
             /* Initialize BLE. */
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_CLASSIC_BT ) );
+            configPRINTF( ( "BLE enabled.\n " ) );
 
             if( prvBLEStackInit() != ESP_OK )
             {
@@ -154,7 +157,9 @@ int app_main( void )
                 {
                 }
             }
+            configPRINTF( ( "BLE stack is OK.\n " ) );
         #else
+            configPRINTF( ( "BLE not enabled.\n " ) );
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_CLASSIC_BT ) );
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_BLE ) );
         #endif /* if BLE_ENABLED */
@@ -196,6 +201,7 @@ static void prvMiscInitialization( void )
     xLoggingTaskInitialize( mainLOGGING_TASK_STACK_SIZE,
                             tskIDLE_PRIORITY + 5,
                             mainLOGGING_MESSAGE_QUEUE_LENGTH );
+configPRINTF( ( "Entered prvMiscInitialization \n " ) );
 
 #if AFR_ESP_LWIP
     configPRINTF( ("Initializing lwIP TCP stack\r\n") );
