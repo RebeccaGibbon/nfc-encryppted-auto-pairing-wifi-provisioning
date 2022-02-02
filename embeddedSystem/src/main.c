@@ -133,7 +133,7 @@ static void iot_uart_init( void )
 void nfc_task(void *pvParameter)
 {
     configPRINTF(("Checking version data. \n"));
-    pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
+    pn532_spi_init(&nfc);
     // pn532_begin(&nfc);
 
     // uint32_t versiondata = pn532_getFirmwareVersion(&nfc);

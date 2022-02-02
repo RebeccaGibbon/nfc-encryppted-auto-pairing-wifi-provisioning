@@ -57,94 +57,101 @@ static void pn532_spi_write(pn532_t *obj, uint8_t c);
 static uint8_t pn532_spi_read(pn532_t *obj);
 
 
-void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8_t ss)
+void pn532_spi_init(pn532_t *obj)
 {
-    obj->_clk = clk;
-    obj->_miso = miso;
-    obj->_mosi = mosi;
-    obj->_ss = ss;
+    esp_err_t ret;
+    spi_device_handle_t spi;
 
-    gpio_pad_select_gpio(obj->_clk);
-    gpio_pad_select_gpio(obj->_miso);
-    gpio_pad_select_gpio(obj->_mosi);
-    gpio_pad_select_gpio(obj->_ss);
-
-    gpio_set_direction(obj->_ss, GPIO_MODE_OUTPUT);
-    gpio_set_level(obj->_ss, 1);
-    gpio_set_direction(obj->_clk, GPIO_MODE_OUTPUT);
-    gpio_set_direction(obj->_mosi, GPIO_MODE_OUTPUT);
-    gpio_set_direction(obj->_miso, GPIO_MODE_INPUT);
-
-    // esp_err_t ret;
-    // spi_device_handle_t spi;
-
-    // // Cnfigure the spi bus
-    // configPRINTF(("Configuring SPI bus....\n"));
-    // spi_bus_config_t buscfg = {
-    //         .miso_io_num = PN532_MISO,
-    //         .mosi_io_num = PN532_MOSI,
-    //         .sclk_io_num = PN532_SCK,
-    //         .quadwp_io_num = -1,
-    //         .quadhd_io_num = -1
-    // };
+    // Cnfigure the spi bus
+    configPRINTF(("Configuring SPI bus....\n"));
+    spi_bus_config_t buscfg = {
+            .miso_io_num = PN532_MISO,
+            .mosi_io_num = PN532_MOSI,
+            .sclk_io_num = PN532_SCK,
+            .quadwp_io_num = -1,
+            .quadhd_io_num = -1
+    };
     
-    // // Configure the spi interface
-    // configPRINTF(("Configuring SPI interface....\n"));
-    // spi_device_interface_config_t devcfg = {
-    //     .command_bits = 16,
-    //     .address_bits = 0,
-    //     .dummy_bits = 0,
-    //     .clock_speed_hz = 10*1000*1000,  // Clock out at 10 MHz
-    //     .duty_cycle_pos = 128,
-    //     .mode = 0,                  // spi mode 0
-    //     .spics_io_num = PN532_SS, // SS pin
-    //     // .cs_ena_posttrans = 3,
-    //     // .cs_ena_pretrans = 0,
-    //     .queue_size = 3             // Number of transactions to queue at a time
-    // };
+    // Configure the spi interface
+    configPRINTF(("Configuring SPI interface....\n"));
+    spi_device_interface_config_t devcfg = {
+        .command_bits = 0,
+        .address_bits = 0,
+        .dummy_bits = 0,
+        .clock_speed_hz = 10*1000*1000,  // Clock out at 10 MHz
+        .duty_cycle_pos = 128,
+        .mode = 0,                  // spi mode 0
+        .spics_io_num = PN532_SS, // SS pin
+        // .cs_ena_posttrans = 3,
+        // .cs_ena_pretrans = 0,
+        .queue_size = 3             // Number of transactions to queue at a time
+    };
 
-    // // Initialise spi bus
-    // configPRINTF(("Initialising bus....\n"));
-    // ret = spi_bus_initialize(PN532_HOST, &buscfg, DMA_CHAN);
-    // ESP_ERROR_CHECK(ret);
+    // Initialise spi bus
+    configPRINTF(("Initialising bus....\n"));
+    ret = spi_bus_initialize(PN532_HOST, &buscfg, DMA_CHAN);
+    ESP_ERROR_CHECK(ret);
 
-    // // Register device
-    // configPRINTF(("Registering device....\n"));
-    // ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-    // ESP_ERROR_CHECK(ret);
+    // Register device
+    configPRINTF(("Registering device....\n"));
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    ESP_ERROR_CHECK(ret);
 
-    // // Interact with device
-    // // test comm for requesting firmware version
-    // uint8_t preamble = 0x00;
-    // uint8_t codeStart1 = 0x00;
-    // uint8_t codeStart2 = 0xFF;
-    // uint8_t cmdLength = 0x02;
-    // uint8_t cmdCksm = 0xFE;
-    // uint8_t TFI = 0xD4;
-    // // Command to get firmware version
-    // uint8_t cmd = 0x02;
-    // uint8_t pcktCksm = 0x2A;
-    // uint8_t postamble = 0x00;
+    // Interact with device
+    // test comm for requesting firmware version
+    uint8_t preamble = 0x00;
+    uint8_t codeStart1 = 0x00;
+    uint8_t codeStart2 = 0xFF;
+    uint8_t cmdLength = 0x02;
+    uint8_t cmdCksm = 0xFE;
+    uint8_t TFI = 0xD4;
+    // Command to get firmware version
+    uint8_t cmd = 0x02;
+    uint8_t pcktCksm = 0x2A;
+    uint8_t postamble = 0x00;
 
-    // configPRINTF(("Configure transaction....\n"));
-    // static spi_transaction_t trans[3];
-    // memset(&trans, 0, sizeof(trans));
-    // trans[0].tx_data[0] = preamble;
-    // trans[1].tx_data[0] = codeStart1;
-    // trans[1].tx_data[1] = codeStart2;
-    // trans[1].tx_data[2] = cmdLength;
-    // trans[1].tx_data[3] = cmdCksm;
-    // trans[2].tx_data[0] = TFI;
-    // trans[2].tx_data[1] = cmd;
-    // trans[2].tx_data[2] = pcktCksm;
-    // trans[2].tx_data[3] = postamble;
+    uint8_t packet [9] = {preamble, codeStart1, codeStart2, cmdLength,
+                            cmdCksm, TFI, cmd, pcktCksm, postamble};
 
-    // configPRINTF(("Queue transactions....\n"));
-    // // ret = spi_device_polling_transmit(spi, &trans);
-    //  for (int x=0; x<3; x++) {
-    //     ret=spi_device_queue_trans(spi, &trans[x], portMAX_DELAY);
-    //     assert(ret==ESP_OK);
-    // }
+    configPRINTF(("Configure transaction....\n"));
+    static spi_transaction_t trans;
+    memset(&trans, 0, sizeof(trans));
+    // Packet is 8 bits
+    trans.length = 32;
+    trans.user = (void*)0;
+
+    for(int i = 0; i < 9; i++)
+    {
+        trans.tx_buffer = &packet[i];
+        configPRINTF(("Polling transaction....%d\n", i));
+        ret = spi_device_polling_transmit(spi, &trans);
+        assert(ret==ESP_OK);            //Should have had no issues.
+    }
+    // configPRINTF(("Receive ack....\n"));
+    // ret=spi_device_get_trans_result(spi, &trans, portMAX_DELAY);
+    // assert(ret==ESP_OK);
+
+    // uint32_t packet1 = 0x0000FF02;
+    // uint32_t packet2 = 0XFED4022A;
+    // uint8_t packet3 = 0x00;
+
+    // trans.tx_buffer = &packet1;
+    // configPRINTF(("Polling transaction 1....\n"));
+    // ret = spi_device_polling_transmit(spi, &trans);
+    // assert(ret==ESP_OK);            //Should have had no issues.
+    // trans.tx_buffer = &packet2;
+    // configPRINTF(("Polling transaction 2....\n"));
+    // ret = spi_device_polling_transmit(spi, &trans);
+    // assert(ret==ESP_OK);            //Should have had no issues.
+
+    // spi_transaction_t t;
+    // memset(&t, 0, sizeof(t));
+    // t.length=8*6;
+    // t.flags = SPI_TRANS_USE_RXDATA;
+    // t.user = (void*)1;
+
+    // ret = spi_device_polling_transmit(spi, &t);
+    // assert( ret == ESP_OK );
     
 }
 
