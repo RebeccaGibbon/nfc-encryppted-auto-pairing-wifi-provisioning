@@ -389,10 +389,24 @@ const successScreen = ({route, navigation}) => {
   );
 };
 
+const nfcScreen = ({route, navigation}) => {
+  const {deviceMacAddress, wifiSsid} = route.params;
+  return (
+    <View style={styles.container}>
+      <View
+        style={
+          (styles.button, {alignItems: 'center', backgroundColor: 'snow'})
+        }>
+        <Text style={styles.nameText}>NFC Screen</Text>
+      </View>
+    </View>
+  );
+};
+
 function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator initialRouteName="NFC">
         <Stack.Screen
           name="Connect Bluetooth"
           component={bluetoothScreen}
@@ -438,6 +452,20 @@ function App() {
         <Stack.Screen
           name="Success"
           component={successScreen}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
+            headerStyle: {
+              backgroundColor: 'cadetblue',
+            },
+            headerTintColor: 'snow',
+            headerTintStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Stack.Screen
+          name="NFC"
+          component={nfcScreen}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
