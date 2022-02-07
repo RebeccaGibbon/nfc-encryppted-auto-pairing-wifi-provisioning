@@ -26,6 +26,8 @@ import AwsFreertos, {
   Characteristic,
   eventKeys,
 } from 'react-native-aws-freertos';
+import LottieView from 'lottie-react-native';
+import nfcCardRead from '../assets/nfcCardRead.json'
 
 import {LogBox} from 'react-native';
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
@@ -390,14 +392,11 @@ const successScreen = ({route, navigation}) => {
 };
 
 const nfcScreen = ({route, navigation}) => {
-  const {deviceMacAddress, wifiSsid} = route.params;
   return (
     <View style={styles.container}>
-      <View
-        style={
-          (styles.button, {alignItems: 'center', backgroundColor: 'snow'})
-        }>
-        <Text style={styles.nameText}>NFC Screen</Text>
+      <LottieView source={nfcCardRead} autoPlay loop />
+      <View>
+        <Text style={{paddingTop:50, fontSize:20}}>Please tap on the NFC module to transfer data</Text>
       </View>
     </View>
   );
