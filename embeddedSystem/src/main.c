@@ -134,51 +134,51 @@ void nfc_task(void *pvParameter)
 {
     configPRINTF(("Checking version data. \n"));
     pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
-    // pn532_begin(&nfc);
+    pn532_begin(&nfc);
 
-    // uint32_t versiondata = pn532_getFirmwareVersion(&nfc);
-    // if (!versiondata)
-    // {
-    //     configPRINTF(("Did not find PN532 board. \n"));
-    //     while (1)
-    //     {
-    //         vTaskDelay(1000 / portTICK_RATE_MS);
-    //     }
-    // }
-    // // Got ok data, print it out!
-    // configPRINTF(("Found PN532. \n"));
-    // configPRINTF(("Firmware ver. %d.%d \n", (versiondata >> 16) & 0xFF, (versiondata >> 8) & 0xFF));
+    uint32_t versiondata = pn532_getFirmwareVersion(&nfc);
+    if (!versiondata)
+    {
+        configPRINTF(("Did not find PN532 board. \n"));
+        while (1)
+        {
+            vTaskDelay(1000 / portTICK_RATE_MS);
+        }
+    }
+    // Got ok data, print it out!
+    configPRINTF(("Found PN532. \n"));
+    configPRINTF(("Firmware ver. %d.%d \n", (versiondata >> 16) & 0xFF, (versiondata >> 8) & 0xFF));
 
-    // // configure board to read RFID tags
-    // pn532_SAMConfig(&nfc);
+    // configure board to read RFID tags
+    pn532_SAMConfig(&nfc);
 
-    // configPRINTF(("Waiting for an ISO14443A Card ... \n");)
+    configPRINTF(("Waiting for an ISO14443A Card ... \n");)
 
-    // while (1)
-    // {
-    //     uint8_t success;
-    //     uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
-    //     uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+    while (1)
+    {
+        uint8_t success;
+        uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
+        uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
 
-    //     // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
-    //     // 'uid' will be populated with the UID, and uidLength will indicate
-    //     // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
-    //     success = pn532_readPassiveTargetID(&nfc, PN532_MIFARE_ISO14443A, uid, &uidLength, 0);
+        // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
+        // 'uid' will be populated with the UID, and uidLength will indicate
+        // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
+        success = pn532_readPassiveTargetID(&nfc, PN532_MIFARE_ISO14443A, uid, &uidLength, 0);
 
-    //     if (success)
-    //     {
-    //         // Display some basic information about the card
-    //         configPRINTF(("Found an ISO14443A card \n"));
-    //         configPRINTF(("UID Length: %d bytes \n", uidLength));
-    //         configPRINTF(("UID Value: \n"));  
-    //         vTaskDelay(1000 / portTICK_RATE_MS);         
-    //     }
-    //     else
-    //     {
-    //         // PN532 probably timed out waiting for a card
-    //         configPRINTF(("Timed out waiting for a card \n"));
-    //     }
-    // }
+        if (success)
+        {
+            // Display some basic information about the card
+            configPRINTF(("Found an ISO14443A card \n"));
+            configPRINTF(("UID Length: %d bytes \n", uidLength));
+            configPRINTF(("UID Value: \n"));  
+            vTaskDelay(1000 / portTICK_RATE_MS);         
+        }
+        else
+        {
+            // PN532 probably timed out waiting for a card
+            configPRINTF(("Timed out waiting for a card \n"));
+        }
+    }
 }
 
 /**

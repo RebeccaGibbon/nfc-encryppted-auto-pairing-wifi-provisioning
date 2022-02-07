@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -22,12 +22,16 @@ import {
 } from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
+// Wi-Fi provision
 import AwsFreertos, {
   Characteristic,
   eventKeys,
 } from 'react-native-aws-freertos';
+// Animation
 import LottieView from 'lottie-react-native';
 import nfcCardRead from '../assets/nfcCardRead.json'
+// Host card emulation
+import HCESession, { NFCContentType, NFCTagType4 } from 'react-native-hce';
 
 import {LogBox} from 'react-native';
 LogBox.ignoreLogs(['new NativeEventEmitter']); // Ignore log notification by message
@@ -392,6 +396,20 @@ const successScreen = ({route, navigation}) => {
 };
 
 const nfcScreen = ({route, navigation}) => {
+  // todo: check if nfc is on
+
+
+  let simulation;
+
+  const startSimulation = async () => {
+    const tag = new NFCTagType4(NFCContentType.Text, "Hello world");
+    simulation = await (new HCESession(tag)).start();
+    //test
+    console.log(tag.content.content);
+  }
+
+  startSimulation();
+
   return (
     <View style={styles.container}>
       <LottieView source={nfcCardRead} autoPlay loop />
