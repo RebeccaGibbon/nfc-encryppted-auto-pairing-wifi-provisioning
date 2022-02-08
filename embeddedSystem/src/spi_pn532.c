@@ -16,7 +16,7 @@
 
 // Define pins for using SPI2 bus
 #define PN532_HOST    HSPI_HOST
-#define DMA_CHAN    2
+#define DMA_CHAN      0
 
 // #define PIN_NUM_MISO 12
 // #define PIN_NUM_MOSI 13
@@ -55,6 +55,7 @@ static bool pn532_isready(pn532_t *obj);
 static bool pn532_waitready(pn532_t *obj, uint16_t timeout);
 static void pn532_spi_write(pn532_t *obj, uint8_t c);
 static uint8_t pn532_spi_read(pn532_t *obj);
+static void send_cmd(spi_device_handle_t spi);
 
 
 void pn532_spi_init(pn532_t *obj)
@@ -84,7 +85,7 @@ void pn532_spi_init(pn532_t *obj)
         .spics_io_num = PN532_SS, // SS pin
         // .cs_ena_posttrans = 3,
         // .cs_ena_pretrans = 0,
-        .queue_size = 3             // Number of transactions to queue at a time
+        .queue_size = 9             // Number of transactions to queue at a time without receiving trans result
     };
 
     // Initialise spi bus
@@ -96,6 +97,14 @@ void pn532_spi_init(pn532_t *obj)
     configPRINTF(("Registering device....\n"));
     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     ESP_ERROR_CHECK(ret);
+
+    send_cmd(spi);
+    
+}
+
+void send_cmd(spi_device_handle_t spi)
+{
+    esp_err_t ret;
 
     // Interact with device
     // test comm for requesting firmware version
@@ -116,44 +125,25 @@ void pn532_spi_init(pn532_t *obj)
     configPRINTF(("Configure transaction....\n"));
     static spi_transaction_t trans;
     memset(&trans, 0, sizeof(trans));
-    // Packet is 8 bits
-    trans.length = 32;
+    // Data length in bits
+    trans.length = 8;
     trans.user = (void*)0;
 
-    for(int i = 0; i < 9; i++)
-    {
-        trans.tx_buffer = &packet[i];
-        configPRINTF(("Polling transaction....%d\n", i));
-        ret = spi_device_polling_transmit(spi, &trans);
-        assert(ret==ESP_OK);            //Should have had no issues.
-    }
-    // configPRINTF(("Receive ack....\n"));
-    // ret=spi_device_get_trans_result(spi, &trans, portMAX_DELAY);
-    // assert(ret==ESP_OK);
+    // for(int i = 0; i < 9; i++)
+    // {
+    //     trans.tx_buffer = &packet[i];
+    //     configPRINTF(("Sending data....%d\n", i));
+    //     ret = spi_device_transmit(spi, &trans);
+    //     assert(ret==ESP_OK);            //Should have had no issues.
+    // }
 
-    // uint32_t packet1 = 0x0000FF02;
-    // uint32_t packet2 = 0XFED4022A;
-    // uint8_t packet3 = 0x00;
+    trans.tx_buffer = &packet;
+    configPRINTF(("Sending data....\n"));
+    ret = spi_device_transmit(spi, &trans);
+    assert(ret==ESP_OK);            //Should have had no issues.
 
-    // trans.tx_buffer = &packet1;
-    // configPRINTF(("Polling transaction 1....\n"));
-    // ret = spi_device_polling_transmit(spi, &trans);
-    // assert(ret==ESP_OK);            //Should have had no issues.
-    // trans.tx_buffer = &packet2;
-    // configPRINTF(("Polling transaction 2....\n"));
-    // ret = spi_device_polling_transmit(spi, &trans);
-    // assert(ret==ESP_OK);            //Should have had no issues.
-
-    // spi_transaction_t t;
-    // memset(&t, 0, sizeof(t));
-    // t.length=8*6;
-    // t.flags = SPI_TRANS_USE_RXDATA;
-    // t.user = (void*)1;
-
-    // ret = spi_device_polling_transmit(spi, &t);
-    // assert( ret == ESP_OK );
-    
 }
+
 
 /**************************************************************************/
 /*!
