@@ -3,50 +3,6 @@
 
 
 // SPI pins
-
-// Frame headers
-// #define PREAMBLE                          (0x00)
-// #define STARTCODE1                        (0x00)
-// #define STARTCODE2                        (0xFF)
-// #define POSTAMBLE                         (0x00)
-
-// #define TFI_HOSTTOPN532                   (0xD4)
-// #define TFI_PN532TOHOST                   (0xD5)
-
-// // Commands
-// #define COMMAND_DIAGNOSE              (0x00)
-// #define COMMAND_GETFIRMWAREVERSION    (0x02)
-// #define COMMAND_GETGENERALSTATUS      (0x04)
-// #define COMMAND_READREGISTER          (0x06)
-// #define COMMAND_WRITEREGISTER         (0x08)
-// #define COMMAND_READGPIO              (0x0C)
-// #define COMMAND_WRITEGPIO             (0x0E)
-// #define COMMAND_SETSERIALBAUDRATE     (0x10)
-// #define COMMAND_SETPARAMETERS         (0x12)
-// #define COMMAND_SAMCONFIGURATION      (0x14)
-// #define COMMAND_POWERDOWN             (0x16)
-// #define COMMAND_RFCONFIGURATION       (0x32)
-// #define COMMAND_RFREGULATIONTEST      (0x58)
-// #define COMMAND_INJUMPFORDEP          (0x56)
-// #define COMMAND_INJUMPFORPSL          (0x46)
-// #define COMMAND_INLISTPASSIVETARGET   (0x4A)
-// #define COMMAND_INATR                 (0x50)
-// #define COMMAND_INPSL                 (0x4E)
-// #define COMMAND_INDATAEXCHANGE        (0x40)
-// #define COMMAND_INCOMMUNICATETHRU     (0x42)
-// #define COMMAND_INDESELECT            (0x44)
-// #define COMMAND_INRELEASE             (0x52)
-// #define COMMAND_INSELECT              (0x54)
-// #define COMMAND_INAUTOPOLL            (0x60)
-// #define COMMAND_TGINITASTARGET        (0x8C)
-// #define COMMAND_TGSETGENERALBYTES     (0x92)
-// #define COMMAND_TGGETDATA             (0x86)
-// #define COMMAND_TGSETDATA             (0x8E)
-// #define COMMAND_TGSETMETADATA         (0x94)
-// #define COMMAND_TGGETINITIATORCOMMAND (0x88)
-// #define COMMAND_TGRESPONSETOINITIATOR (0x90)
-// #define COMMAND_TGGETTARGETSTATUS     (0x8A)
-
 #define PN532_MISO 12
 #define PN532_MOSI 13
 #define PN532_SCK  14 // SCK

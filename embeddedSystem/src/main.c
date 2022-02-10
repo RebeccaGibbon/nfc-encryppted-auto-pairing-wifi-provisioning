@@ -152,7 +152,7 @@ void nfc_task(void *pvParameter)
     // configure board to read RFID tags
     pn532_SAMConfig(&nfc);
 
-    configPRINTF(("Waiting for an ISO14443A Card ... \n");)
+    configPRINTF(("Waiting for an NFC Card ... \n");)
 
     while (1)
     {
@@ -168,16 +168,73 @@ void nfc_task(void *pvParameter)
         if (success)
         {
             // Display some basic information about the card
-            configPRINTF(("Found an ISO14443A card \n"));
+            configPRINTF(("Found an NFC card \n"));
             configPRINTF(("UID Length: %d bytes \n", uidLength));
-            configPRINTF(("UID Value: \n"));  
-            vTaskDelay(1000 / portTICK_RATE_MS);         
+            configPRINTF(("UID Value: \n"));
+            for(int i = 0; i < uidLength; i++)
+            {
+                configPRINTF(("%02x \n", uid[i]));
+            }
+            vTaskDelay(1000 / portTICK_RATE_MS);      
         }
         else
         {
             // PN532 probably timed out waiting for a card
             configPRINTF(("Timed out waiting for a card \n"));
         }
+        success = pn532_inListPassiveTarget(&nfc);
+        if(success)
+        {
+        configPRINTF(("Target inlisted \n"));
+        }
+        else
+        {
+            configPRINTF(("Error inlisting target \n"));
+        }
+
+        uint8_t dataMifare[16] = {0};
+        // uint8_t keyData[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+        // for(int i = 0; i < uidLength; i++)
+        // {
+        //     configPRINTF(("UID Value: \t"));
+        //     configPRINTF(("%02x \n", uid[i]));
+        // }
+        // success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, &uidLength, 0x06, 0, keyData);
+        // if(success)
+        // {
+        //     configPRINTF(("Authenticated \n"));
+        // }
+        success = pn532_mifareclassic_ReadDataBlock(&nfc, 0x06,  dataMifare);
+        if(success)
+        {
+            for(int i = 0; i < sizeof(dataMifare); i++)
+            {
+            configPRINTF(("Read data: \t"));
+            configPRINTF(("%02x \n", dataMifare[i]));
+            }
+        }
+        else
+        {
+            configPRINTF(("Error reading data \n"));
+        }
+        
+        // uint8_t send [2] = {0x30, 0x06};
+        // uint8_t sendLength = 2;
+        // uint8_t dataLength = 16;
+        // success = pn532_inDataExchange(&nfc, send, sendLength, dataMifare, dataLength);
+        // if(success)
+        // {
+        //     for(int i = 0; i < sizeof(dataMifare); i++)
+        //     {
+        //     configPRINTF(("Read data: \t"));
+        //     configPRINTF(("%02x \n", dataMifare[i]));
+        //     }
+        // }
+        // else
+        // {
+        //     configPRINTF(("Error reading data \n"));
+        // }
+
     }
 }
 
