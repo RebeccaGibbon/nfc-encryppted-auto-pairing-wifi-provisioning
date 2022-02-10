@@ -99,7 +99,13 @@ void pn532_spi_init(pn532_t *obj)
     ESP_ERROR_CHECK(ret);
 
     send_cmd(spi);
-    
+    rec_ack(spi);
+
+    while (1)
+    {
+        vTaskDelay(1000 / portTICK_RATE_MS);
+    }
+
 }
 
 void send_cmd(spi_device_handle_t spi)
@@ -126,21 +132,38 @@ void send_cmd(spi_device_handle_t spi)
     static spi_transaction_t trans;
     memset(&trans, 0, sizeof(trans));
     // Data length in bits
-    trans.length = 8;
+    trans.length = 8*9;
     trans.user = (void*)0;
 
-    // for(int i = 0; i < 9; i++)
-    // {
-    //     trans.tx_buffer = &packet[i];
-    //     configPRINTF(("Sending data....%d\n", i));
-    //     ret = spi_device_transmit(spi, &trans);
-    //     assert(ret==ESP_OK);            //Should have had no issues.
-    // }
-
-    trans.tx_buffer = &packet;
+    trans.tx_buffer = packet;
     configPRINTF(("Sending data....\n"));
     ret = spi_device_transmit(spi, &trans);
     assert(ret==ESP_OK);            //Should have had no issues.
+
+}
+
+void rec_ack(spi_device_handle_t spi)
+{
+    esp_err_t ret;
+    uint8_t data[6];
+
+    configPRINTF(("Configure receive transaction....\n"));
+    static spi_transaction_t receive;
+    memset(&receive, 0, sizeof(receive));
+    // Data length in bits
+    receive.length = 8*6;
+    receive.user = (void*)0;
+    receive.rx_buffer = data;
+    receive.rxlength = 8*6;
+
+    configPRINTF(("Receiving data....\n"));
+    ret = spi_device_transmit(spi, &receive);
+    // uint32_t res = SPI_SWAP_DATA_RX(data, 32);
+    for(int i = 0; i < 6; i++)
+    {
+        configPRINTF(("Receiving data.... %02x \n", data[i]));
+    }
+    assert(ret==ESP_OK); 
 
 }
 

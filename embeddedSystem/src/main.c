@@ -140,10 +140,10 @@ void nfc_task(void *pvParameter)
     // if (!versiondata)
     // {
     //     configPRINTF(("Did not find PN532 board. \n"));
-    //     while (1)
-    //     {
-    //         vTaskDelay(1000 / portTICK_RATE_MS);
-    //     }
+        // while (1)
+        // {
+        //     vTaskDelay(1000 / portTICK_RATE_MS);
+        // }
     // }
     // // Got ok data, print it out!
     // configPRINTF(("Found PN532. \n"));
