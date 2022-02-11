@@ -14,6 +14,9 @@
 #include "iot_logging_task.h"
 #include "spi_pn532.h"
 
+#include <esp_log.h>
+#include <esp_log_internal.h>
+
 // Define pins for using SPI2 bus
 #define PN532_HOST    HSPI_HOST
 
@@ -27,6 +30,21 @@
 // #define PN532_MOSI 13
 // #define PN532_SCK  14 // SCK
 // #define PN532_SS   15 // SS
+
+//#define PN532_DEBUG_EN
+//#define MIFARE_DEBUG_EN
+
+#ifdef PN532_DEBUG_EN
+#define PN532_DEBUG(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+#define PN532_DEBUG(fmt, ...)
+#endif
+
+#ifdef MIFARE_DEBUG_EN
+#define MIFARE_DEBUG(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+#define MIFARE_DEBUG(fmt, ...)
+#endif
 
 #define PN532_PACKBUFFSIZ 64
 
@@ -48,7 +66,6 @@ static bool pn532_waitready(pn532_t *obj, uint16_t timeout);
 static void pn532_spi_write(pn532_t *obj, uint8_t c);
 static uint8_t pn532_spi_read(pn532_t *obj);
 
-
 void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8_t ss)
 {
     obj->_clk = clk;
@@ -66,7 +83,6 @@ void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8
     gpio_set_direction(obj->_clk, GPIO_MODE_OUTPUT);
     gpio_set_direction(obj->_mosi, GPIO_MODE_OUTPUT);
     gpio_set_direction(obj->_miso, GPIO_MODE_INPUT);
-    
 }
 
 /**************************************************************************/
@@ -77,7 +93,6 @@ void pn532_spi_init(pn532_t *obj, uint8_t clk, uint8_t miso, uint8_t mosi, uint8
 void pn532_begin(pn532_t *obj)
 {
     gpio_set_level(obj->_ss, 0);
-    // gpio_set_level(PN532_SS, 0);
 
     PN532_DELAY(1000);
 
@@ -87,7 +102,6 @@ void pn532_begin(pn532_t *obj)
 
     // ignore response!
     gpio_set_level(obj->_ss, 1);
-    // gpio_set_level(PN532_SS, 1);
 }
 
 /**************************************************************************/
@@ -100,17 +114,12 @@ uint32_t pn532_getFirmwareVersion(pn532_t *obj)
 {
     uint32_t response;
 
-    configPRINTF(("Getting firmware version.\n"));
-
     pn532_packetbuffer[0] = PN532_COMMAND_GETFIRMWAREVERSION;
 
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 1, 1000))
     {
-        configPRINTF(("!pn532_sendCommandCheckAck!\n"));
         return 0;
     }
-
-    configPRINTF(("Got firmware version.\n"));
 
     // read data packet
     pn532_readdata(obj, pn532_packetbuffer, 12);
@@ -118,7 +127,7 @@ uint32_t pn532_getFirmwareVersion(pn532_t *obj)
     // check some basic stuff
     if (0 != strncmp((char *)pn532_packetbuffer, (char *)pn532response_firmwarevers, 6))
     {
-        configPRINTF(("Firmware doesn't match!\n"));
+        PN532_DEBUG("Firmware doesn't match!\n");
         return 0;
     }
 
@@ -147,37 +156,141 @@ uint32_t pn532_getFirmwareVersion(pn532_t *obj)
 // default timeout of one second
 bool pn532_sendCommandCheckAck(pn532_t *obj, uint8_t *cmd, uint8_t cmdlen, uint16_t timeout)
 {
-    configPRINTF(("Writing command.\n"));
     // write the command
     pn532_writecommand(obj, cmd, cmdlen);
 
-    configPRINTF(("Waiting for ACK 1.\n"));
     // Wait for chip to say its ready!
     if (!pn532_waitready(obj, timeout))
     {
-        configPRINTF(("Not ready 1.\n"));
         return false;
     }
 
     // read acknowledgement
     if (!pn532_readack(obj))
     {
-        configPRINTF(("No ACK frame received!\n"));
+        PN532_DEBUG("No ACK frame received!\n");
         return false;
     }
 
-    configPRINTF(("Waiting for ACK 2.\n"));
     // For SPI only wait for the chip to be ready again.
     // This is unnecessary with I2C.
     if (!pn532_waitready(obj, timeout))
     {
-        configPRINTF(("Not ready 2.\n"));
         return false;
     }
 
     return true; // ack'd command
 }
 
+/**************************************************************************/
+/*!
+    Writes an 8-bit value that sets the state of the PN532's GPIO pins
+    @warning This function is provided exclusively for board testing and
+             is dangerous since it will throw an error if any pin other
+             than the ones marked "Can be used as GPIO" are modified!  All
+             pins that can not be used as GPIO should ALWAYS be left high
+             (value = 1) or the system will become unstable and a HW reset
+             will be required to recover the PN532.
+             pinState[0]  = P30     Can be used as GPIO
+             pinState[1]  = P31     Can be used as GPIO
+             pinState[2]  = P32     *** RESERVED (Must be 1!) ***
+             pinState[3]  = P33     Can be used as GPIO
+             pinState[4]  = P34     *** RESERVED (Must be 1!) ***
+             pinState[5]  = P35     Can be used as GPIO
+    @returns 1 if everything executed properly, 0 for an error
+*/
+/**************************************************************************/
+bool pn532_writeGPIO(pn532_t *obj, uint8_t pinstate)
+{
+
+    // Make sure pinstate does not try to toggle P32 or P34
+    pinstate |= (1 << PN532_GPIO_P32) | (1 << PN532_GPIO_P34);
+
+    // Fill command buffer
+    pn532_packetbuffer[0] = PN532_COMMAND_WRITEGPIO;
+    pn532_packetbuffer[1] = PN532_GPIO_VALIDATIONBIT | pinstate; // P3 Pins
+    pn532_packetbuffer[2] = 0x00;                                // P7 GPIO Pins (not used ... taken by SPI)
+
+    PN532_DEBUG("Writing P3 GPIO: %02x\n", pn532_packetbuffer[1]);
+
+    // Send the WRITEGPIO command (0x0E)
+    if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 3, 1000))
+        return 0x0;
+
+    // Read response packet (00 FF PLEN PLENCHECKSUM D5 CMD+1(0x0F) DATACHECKSUM 00)
+    pn532_readdata(obj, pn532_packetbuffer, 8);
+
+    PN532_DEBUG("Received:");
+    for (int i = 0; i < 8; i++)
+    {
+        PN532_DEBUG(" %02x", pn532_packetbuffer[i]);
+    }
+    PN532_DEBUG("\n");
+
+    int offset = 5;
+    return (pn532_packetbuffer[offset] == 0x0F);
+}
+
+/**************************************************************************/
+/*!
+    Reads the state of the PN532's GPIO pins
+    @returns An 8-bit value containing the pin state where:
+             pinState[0]  = P30
+             pinState[1]  = P31
+             pinState[2]  = P32
+             pinState[3]  = P33
+             pinState[4]  = P34
+             pinState[5]  = P35
+*/
+/**************************************************************************/
+uint8_t pn532_readGPIO(pn532_t *obj)
+{
+    pn532_packetbuffer[0] = PN532_COMMAND_READGPIO;
+
+    // Send the READGPIO command (0x0C)
+    if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 1, 1000))
+        return 0x0;
+
+    // Read response packet (00 FF PLEN PLENCHECKSUM D5 CMD+1(0x0D) P3 P7 IO1 DATACHECKSUM 00)
+    pn532_readdata(obj, pn532_packetbuffer, 11);
+
+    /* READGPIO response should be in the following format:
+    uint8_t            Description
+    -------------   ------------------------------------------
+    b0..5           Frame header and preamble (with I2C there is an extra 0x00)
+    b6              P3 GPIO Pins
+    b7              P7 GPIO Pins (not used ... taken by SPI)
+    b8              Interface Mode Pins (not used ... bus select pins)
+    b9..10          checksum */
+
+    int p3offset = 6;
+
+    PN532_DEBUG("Received:");
+    for (int i = 0; i < 11; i++)
+    {
+        PN532_DEBUG(" %02x", pn532_packetbuffer[i]);
+    }
+    PN532_DEBUG("\n");
+
+    PN532_DEBUG("P3 GPIO: %02x\n", pn532_packetbuffer[p3offset]);
+    PN532_DEBUG("P7 GPIO: %02x\n", pn532_packetbuffer[p3offset + 1]);
+    PN532_DEBUG("IO GPIO: %02x\n", pn532_packetbuffer[p3offset + 2]);
+    // Note: You can use the IO GPIO value to detect the serial bus being used
+    switch (pn532_packetbuffer[p3offset + 2])
+    {
+    case 0x00: // Using UART
+        PN532_DEBUG("Using UART (IO = 0x00)\n");
+        break;
+    case 0x01: // Using I2C
+        PN532_DEBUG("Using I2C (IO = 0x01)\n");
+        break;
+    case 0x02: // Using SPI
+        PN532_DEBUG("Using SPI (IO = 0x02)\n");
+        break;
+    }
+
+    return pn532_packetbuffer[p3offset];
+}
 
 /**************************************************************************/
 /*!
@@ -201,6 +314,29 @@ bool pn532_SAMConfig(pn532_t *obj)
     return (pn532_packetbuffer[offset] == 0x15);
 }
 
+/**************************************************************************/
+/*!
+    Sets the MxRtyPassiveActivation uint8_t of the RFConfiguration register
+    @param  maxRetries    0xFF to wait forever, 0x00..0xFE to timeout
+                          after mxRetries
+    @returns 1 if everything executed properly, 0 for an error
+*/
+/**************************************************************************/
+bool pn532_setPassiveActivationRetries(pn532_t *obj, uint8_t maxRetries)
+{
+    pn532_packetbuffer[0] = PN532_COMMAND_RFCONFIGURATION;
+    pn532_packetbuffer[1] = 5;    // Config item 5 (MaxRetries)
+    pn532_packetbuffer[2] = 0xFF; // MxRtyATR (default = 0xFF)
+    pn532_packetbuffer[3] = 0x01; // MxRtyPSL (default = 0x01)
+    pn532_packetbuffer[4] = maxRetries;
+
+    PN532_DEBUG("Setting MxRtyPassiveActivation to %d\n", maxRetries);
+
+    if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 5, 1000))
+        return 0x0; // no ACK
+
+    return 1;
+}
 
 /***** ISO14443A Commands ******/
 
@@ -223,7 +359,7 @@ bool pn532_readPassiveTargetID(pn532_t *obj, uint8_t cardbaudrate, uint8_t *uid,
 
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 3, timeout))
     {
-        configPRINTF(("No card(s) read\n"));
+        PN532_DEBUG("No card(s) read\n");
         return 0x0; // no cards read
     }
 
@@ -242,15 +378,15 @@ bool pn532_readPassiveTargetID(pn532_t *obj, uint8_t cardbaudrate, uint8_t *uid,
     b12             NFCID Length
     b13..NFCIDLen   NFCID                                      */
 
-    configPRINTF(("Found %d tags\n", pn532_packetbuffer[7]));
+    PN532_DEBUG("Found %d tags\n", pn532_packetbuffer[7]);
     if (pn532_packetbuffer[7] != 1)
         return 0;
 
     uint16_t sens_res = pn532_packetbuffer[9];
     sens_res <<= 8;
     sens_res |= pn532_packetbuffer[10];
-    configPRINTF(("ATQA: %02x\n", sens_res));
-    configPRINTF(("SAK: %02x\n", pn532_packetbuffer[11]));
+    PN532_DEBUG("ATQA: %02x\n", sens_res);
+    PN532_DEBUG("SAK: %02x\n", pn532_packetbuffer[11]);
 
     /* Card appears to be Mifare Classic */
     *uidLength = pn532_packetbuffer[12];
@@ -260,13 +396,12 @@ bool pn532_readPassiveTargetID(pn532_t *obj, uint8_t cardbaudrate, uint8_t *uid,
         uid[i] = pn532_packetbuffer[13 + i];
     }
 
-    configPRINTF(("UID: \n"));
+    PN532_DEBUG("UID:");
     for (int i = 0; i < pn532_packetbuffer[12]; i++)
     {
-        configPRINTF(("Printing UID\t"));
-        configPRINTF((" %02x \n", uid[i]));
+        PN532_DEBUG(" %02x", uid[i]);
     }
-    configPRINTF(("\n"));
+    PN532_DEBUG("\n");
 
     return 1;
 }
@@ -284,7 +419,7 @@ bool pn532_inDataExchange(pn532_t *obj, uint8_t *send, uint8_t sendLength, uint8
 {
     if (sendLength > PN532_PACKBUFFSIZ - 2)
     {
-        configPRINTF(("APDU length too long for packet buffer\n"));
+        PN532_DEBUG("APDU length too long for packet buffer\n");
         return false;
     }
     uint8_t i;
@@ -298,13 +433,13 @@ bool pn532_inDataExchange(pn532_t *obj, uint8_t *send, uint8_t sendLength, uint8
 
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, sendLength + 2, 1000))
     {
-        configPRINTF(("Could not send APDU\n"));
+        PN532_DEBUG("Could not send APDU\n");
         return false;
     }
 
     if (!pn532_waitready(obj, 1000))
     {
-        configPRINTF(("Response never received for APDU...\n"));
+        PN532_DEBUG("Response never received for APDU...\n");
         return false;
     }
 
@@ -315,14 +450,14 @@ bool pn532_inDataExchange(pn532_t *obj, uint8_t *send, uint8_t sendLength, uint8
         uint8_t length = pn532_packetbuffer[3];
         if (pn532_packetbuffer[4] != (uint8_t)(~length + 1))
         {
-            configPRINTF(("Length check invalid %02x%02x\n", length, (~length) + 1));
+            PN532_DEBUG("Length check invalid %02x%02x\n", length, (~length) + 1);
             return false;
         }
         if (pn532_packetbuffer[5] == PN532_PN532TOHOST && pn532_packetbuffer[6] == PN532_RESPONSE_INDATAEXCHANGE)
         {
             if ((pn532_packetbuffer[7] & 0x3f) != 0)
             {
-                configPRINTF(("Status code indicates an error\n"));
+                PN532_DEBUG("Status code indicates an error\n");
                 return false;
             }
 
@@ -343,13 +478,13 @@ bool pn532_inDataExchange(pn532_t *obj, uint8_t *send, uint8_t sendLength, uint8
         }
         else
         {
-            configPRINTF(("Don't know how to handle this command: %02x\n", pn532_packetbuffer[6]));
+            PN532_DEBUG("Don't know how to handle this command: %02x\n", pn532_packetbuffer[6]);
             return false;
         }
     }
     else
     {
-        configPRINTF(("Preamble missing\n"));
+        PN532_DEBUG("Preamble missing\n");
         return false;
     }
 }
@@ -366,11 +501,11 @@ bool pn532_inListPassiveTarget(pn532_t *obj)
     pn532_packetbuffer[1] = 1;
     pn532_packetbuffer[2] = 0;
 
-    configPRINTF(("About to inList passive target\n"));
+    PN532_DEBUG("About to inList passive target\n");
 
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 3, 1000))
     {
-        configPRINTF(("Could not send inlist message\n"));
+        PN532_DEBUG("Could not send inlist message\n");
         return false;
     }
 
@@ -386,32 +521,32 @@ bool pn532_inListPassiveTarget(pn532_t *obj)
         uint8_t length = pn532_packetbuffer[3];
         if (pn532_packetbuffer[4] != (uint8_t)(~length + 1))
         {
-            configPRINTF(("Length check invalid %02x%02x\n", length, (~length) + 1));
+            PN532_DEBUG("Length check invalid %02x%02x\n", length, (~length) + 1);
             return false;
         }
         if (pn532_packetbuffer[5] == PN532_PN532TOHOST && pn532_packetbuffer[6] == PN532_RESPONSE_INLISTPASSIVETARGET)
         {
             if (pn532_packetbuffer[7] != 1)
             {
-                configPRINTF(("Unhandled number of targets inlisted\n"));
-                configPRINTF(("Number of tags inlisted: %d\n", pn532_packetbuffer[7]));
+                PN532_DEBUG("Unhandled number of targets inlisted\n");
+                PN532_DEBUG("Number of tags inlisted: %d\n", pn532_packetbuffer[7]);
                 return false;
             }
 
             obj->_inListedTag = pn532_packetbuffer[8];
-            configPRINTF(("Tag number: %d\n", obj->_inListedTag));
+            PN532_DEBUG("Tag number: %d\n", obj->_inListedTag);
 
             return true;
         }
         else
         {
-            configPRINTF(("Unexpected response to inlist passive host\n"));
+            PN532_DEBUG("Unexpected response to inlist passive host\n");
             return false;
         }
     }
     else
     {
-        configPRINTF(("Preamble missing\n"));
+        PN532_DEBUG("Preamble missing\n");
         return false;
     }
 
@@ -475,18 +610,18 @@ uint8_t pn532_mifareclassic_AuthenticateBlock(pn532_t *obj, uint8_t *uid, uint8_
     memcpy(obj->_uid, uid, uidLen);
     obj->_uidLen = uidLen;
 
-    configPRINTF(("Trying to authenticate card\n"));
+    MIFARE_DEBUG("Trying to authenticate card\n");
     for (int i = 0; i < obj->_uidLen; i++)
     {
-        configPRINTF((" %02x", obj->_uid[i]));
+        MIFARE_DEBUG(" %02x", obj->_uid[i]);
     }
-    configPRINTF(("\n"));
-    configPRINTF(("Using authentication KEY %c\n", keyNumber ? 'B' : 'A'));
+    MIFARE_DEBUG("\n");
+    MIFARE_DEBUG("Using authentication KEY %c\n", keyNumber ? 'B' : 'A');
     for (int i = 0; i < 6; i++)
     {
-        configPRINTF((" %02x", obj->_key[i]));
+        MIFARE_DEBUG(" %02x", obj->_key[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
 
     // Prepare the authentication command //
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE; /* Data Exchange Header */
@@ -510,12 +645,12 @@ uint8_t pn532_mifareclassic_AuthenticateBlock(pn532_t *obj, uint8_t *uid, uint8_
     // Mifare auth error is technically uint8_t 7: 0x14 but anything other and 0x00 is not good
     if (pn532_packetbuffer[7] != 0x00)
     {
-        configPRINTF(("Authentification failed\n"));
+        MIFARE_DEBUG("Authentification failed\n");
         for (int i = 0; i < 12; i++)
     {
-        configPRINTF((" %02x \n", pn532_packetbuffer[i]));
+        MIFARE_DEBUG(" %02x", pn532_packetbuffer[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
         return 0;
     }
 
@@ -535,7 +670,7 @@ uint8_t pn532_mifareclassic_AuthenticateBlock(pn532_t *obj, uint8_t *uid, uint8_
 /**************************************************************************/
 uint8_t pn532_mifareclassic_ReadDataBlock(pn532_t *obj, uint8_t blockNumber, uint8_t *data)
 {
-    configPRINTF(("Trying to read 16 bytes from block %d\n", blockNumber));
+    MIFARE_DEBUG("Trying to read 16 bytes from block %d\n", blockNumber);
 
     /* Prepare the command */
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
@@ -546,7 +681,7 @@ uint8_t pn532_mifareclassic_ReadDataBlock(pn532_t *obj, uint8_t blockNumber, uin
     /* Send the command */
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 4, 1000))
     {
-        configPRINTF(("Failed to receive ACK for read command\n"));
+        MIFARE_DEBUG("Failed to receive ACK for read command\n");
         return 0;
     }
 
@@ -556,12 +691,12 @@ uint8_t pn532_mifareclassic_ReadDataBlock(pn532_t *obj, uint8_t blockNumber, uin
     /* If uint8_t 8 isn't 0x00 we probably have an error */
     if (pn532_packetbuffer[7] != 0x00)
     {
-        configPRINTF(("Unexpected response: \n"));
+        MIFARE_DEBUG("Unexpected response:");
         for (int i = 0; i < 26; i++)
         {
-            configPRINTF((" %02x \n", pn532_packetbuffer[i]));
+            MIFARE_DEBUG(" %02x", pn532_packetbuffer[i]);
         }
-        configPRINTF(("\n"));
+        MIFARE_DEBUG("\n");
         return 0;
     }
 
@@ -570,12 +705,12 @@ uint8_t pn532_mifareclassic_ReadDataBlock(pn532_t *obj, uint8_t blockNumber, uin
     memcpy(data, pn532_packetbuffer + 8, 16);
 
 /* Display data for debug if requested */
-    configPRINTF(("Block %d\n", blockNumber));
+    MIFARE_DEBUG("Block %d\n", blockNumber);
     for (int i = 0; i < 16; i++)
     {
-        configPRINTF((" %02x", data[i]));
+        MIFARE_DEBUG(" %02x", data[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
 
     return 1;
 }
@@ -592,7 +727,7 @@ uint8_t pn532_mifareclassic_ReadDataBlock(pn532_t *obj, uint8_t blockNumber, uin
 /**************************************************************************/
 uint8_t pn532_mifareclassic_WriteDataBlock(pn532_t *obj, uint8_t blockNumber, uint8_t *data)
 {
-    configPRINTF(("Trying to write 16 bytes to block %d\n", blockNumber));
+    MIFARE_DEBUG("Trying to write 16 bytes to block %d\n", blockNumber);
 
     /* Prepare the first command */
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
@@ -604,7 +739,7 @@ uint8_t pn532_mifareclassic_WriteDataBlock(pn532_t *obj, uint8_t blockNumber, ui
     /* Send the command */
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 20, 1000))
     {
-        configPRINTF(("Failed to receive ACK for write command\n"));
+        MIFARE_DEBUG("Failed to receive ACK for write command\n");
         return 0;
     }
     PN532_DELAY(10);
@@ -742,11 +877,11 @@ uint8_t pn532_mifareultralight_ReadPage(pn532_t *obj, uint8_t page, uint8_t *buf
 {
     if (page >= 64)
     {
-        configPRINTF(("Page value out of range\n"));
+        MIFARE_DEBUG("Page value out of range\n");
         return 0;
     }
 
-    configPRINTF(("Reading page %d\n", page));
+    MIFARE_DEBUG("Reading page %d\n", page);
 
     /* Prepare the command */
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
@@ -757,18 +892,18 @@ uint8_t pn532_mifareultralight_ReadPage(pn532_t *obj, uint8_t page, uint8_t *buf
     /* Send the command */
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 4, 1000))
     {
-        configPRINTF(("Failed to receive ACK for write command\n"));
+        MIFARE_DEBUG("Failed to receive ACK for write command\n");
         return 0;
     }
 
     /* Read the response packet */
     pn532_readdata(obj, pn532_packetbuffer, 26);
-    configPRINTF(("Received: \n"));
+    MIFARE_DEBUG("Received:");
     for (int i = 0; i < 26; i++)
     {
-        configPRINTF((" %02x", pn532_packetbuffer[i]));
+        MIFARE_DEBUG(" %02x", pn532_packetbuffer[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
 
     /* If uint8_t 8 isn't 0x00 we probably have an error */
     if (pn532_packetbuffer[7] == 0x00)
@@ -782,22 +917,22 @@ uint8_t pn532_mifareultralight_ReadPage(pn532_t *obj, uint8_t page, uint8_t *buf
     }
     else
     {
-        configPRINTF(("Unexpected response reading block: \n"));
+        MIFARE_DEBUG("Unexpected response reading block:");
         for (int i = 0; i < 26; i++)
         {
-            configPRINTF((" %02x", pn532_packetbuffer[i]));
+            MIFARE_DEBUG(" %02x", pn532_packetbuffer[i]);
         }
-        configPRINTF(("\n"));
+        MIFARE_DEBUG("\n");
         return 0;
     }
 
 /* Display data for debug if requested */
-    configPRINTF(("Page %d:", page));
+    MIFARE_DEBUG("Page %d:", page);
     for (int i = 0; i < 4; i++)
     {
-        configPRINTF((" %02x", buffer[i]));
+        MIFARE_DEBUG(" %02x", buffer[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
 
     // Return OK signal
     return 1;
@@ -818,12 +953,12 @@ uint8_t pn532_mifareultralight_WritePage(pn532_t *obj, uint8_t page, uint8_t *da
 
     if (page >= 64)
     {
-        configPRINTF(("Page value out of range\n"));
+        MIFARE_DEBUG("Page value out of range\n");
         // Return Failed Signal
         return 0;
     }
 
-    configPRINTF(("Trying to write 4 uint8_t page %d\n", page));
+    MIFARE_DEBUG("Trying to write 4 uint8_t page %d\n", page);
 
     /* Prepare the first command */
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
@@ -835,7 +970,7 @@ uint8_t pn532_mifareultralight_WritePage(pn532_t *obj, uint8_t page, uint8_t *da
     /* Send the command */
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 8, 1000))
     {
-        configPRINTF(("Failed to receive ACK for write command\n"));
+        MIFARE_DEBUG("Failed to receive ACK for write command\n");
         // Return Failed Signal
         return 0;
     }
@@ -869,11 +1004,11 @@ uint8_t pn532_ntag2xx_ReadPage(pn532_t *obj, uint8_t page, uint8_t *buffer)
 
     if (page >= 231)
     {
-        configPRINTF(("Page value out of range\n"));
+        MIFARE_DEBUG("Page value out of range\n");
         return 0;
     }
 
-    configPRINTF(("Reading page %d\n", page));
+    MIFARE_DEBUG("Reading page %d\n", page);
 
     /* Prepare the command */
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
@@ -884,18 +1019,18 @@ uint8_t pn532_ntag2xx_ReadPage(pn532_t *obj, uint8_t page, uint8_t *buffer)
     /* Send the command */
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 4, 1000))
     {
-        configPRINTF(("Failed to receive ACK for write command\n"));
+        MIFARE_DEBUG("Failed to receive ACK for write command\n");
         return 0;
     }
 
     /* Read the response packet */
     pn532_readdata(obj, pn532_packetbuffer, 26);
-    configPRINTF(("Received:"));
+    MIFARE_DEBUG("Received:");
     for (int i = 0; i < 26; i++)
     {
-        configPRINTF((" %02x", pn532_packetbuffer[i]));
+        MIFARE_DEBUG(" %02x", pn532_packetbuffer[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
 
     /* If uint8_t 8 isn't 0x00 we probably have an error */
     if (pn532_packetbuffer[7] == 0x00)
@@ -909,22 +1044,22 @@ uint8_t pn532_ntag2xx_ReadPage(pn532_t *obj, uint8_t page, uint8_t *buffer)
     }
     else
     {
-        configPRINTF(("Unexpected response reading block:"));
+        MIFARE_DEBUG("Unexpected response reading block:");
         for (int i = 0; i < 26; i++)
         {
-            configPRINTF((" %02x", pn532_packetbuffer[i]));
+            MIFARE_DEBUG(" %02x", pn532_packetbuffer[i]);
         }
-        configPRINTF(("\n"));
+        MIFARE_DEBUG("\n");
         return 0;
     }
 
 /* Display data for debug if requested */
-    configPRINTF(("Page %d:", page));
+    MIFARE_DEBUG("Page %d:", page);
     for (int i = 0; i < 4; i++)
     {
-        configPRINTF((" %02x", buffer[i]));
+        MIFARE_DEBUG(" %02x", buffer[i]);
     }
-    configPRINTF(("\n"));
+    MIFARE_DEBUG("\n");
 
     // Return OK signal
     return 1;
@@ -951,12 +1086,12 @@ uint8_t pn532_ntag2xx_WritePage(pn532_t *obj, uint8_t page, uint8_t *data)
 
     if ((page < 4) || (page > 225))
     {
-        configPRINTF(("Page value out of range\n"));
+        MIFARE_DEBUG("Page value out of range\n");
         // Return Failed Signal
         return 0;
     }
 
-    configPRINTF(("Trying to write 4 uint8_t page %d\n", page));
+    MIFARE_DEBUG("Trying to write 4 uint8_t page %d\n", page);
 
     /* Prepare the first command */
     pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
@@ -968,7 +1103,7 @@ uint8_t pn532_ntag2xx_WritePage(pn532_t *obj, uint8_t page, uint8_t *data)
     /* Send the command */
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 8, 1000))
     {
-        configPRINTF(("Failed to receive ACK for write command\n"));
+        MIFARE_DEBUG("Failed to receive ACK for write command\n");
 
         // Return Failed Signal
         return 0;
@@ -1107,14 +1242,12 @@ bool pn532_readack(pn532_t *obj)
 bool pn532_isready(pn532_t *obj)
 {
     gpio_set_level(obj->_ss, 0);
-    // gpio_set_level(PN532_SS, 0);
     PN532_DELAY(10);
     pn532_spi_write(obj, PN532_SPI_STATREAD);
     // read uint8_t
     uint8_t x = pn532_spi_read(obj);
 
     gpio_set_level(obj->_ss, 1);
-    // gpio_set_level(PN532_SS, 1);
 
     // Check if status is ready.
     return x == PN532_SPI_READY;
@@ -1136,7 +1269,7 @@ bool pn532_waitready(pn532_t *obj, uint16_t timeout)
             timer += 10;
             if (timer > timeout)
             {
-                configPRINTF(("TIMEOUT!\n"));
+                PN532_DEBUG("TIMEOUT!\n");
                 return false;
             }
         }
@@ -1155,24 +1288,22 @@ bool pn532_waitready(pn532_t *obj, uint16_t timeout)
 void pn532_readdata(pn532_t *obj, uint8_t *buff, uint8_t n)
 {
     gpio_set_level(obj->_ss, 0);
-    // gpio_set_level(PN532_SS, 0);
     PN532_DELAY(10);
     pn532_spi_write(obj, PN532_SPI_DATAREAD);
 
-    configPRINTF(("Reading: \n"));
+    PN532_DEBUG("Reading:");
     for (uint8_t i = 0; i < n; i++)
     {
-        PN532_DELAY(10);
+        PN532_DELAY(5);
         buff[i] = pn532_spi_read(obj);
     }
     for (int i = 0; i < n; i++)
     {
-        configPRINTF((" %02x \n", buff[i]));
+        PN532_DEBUG(" %02x", buff[i]);
     }
-    configPRINTF(("\n"));
+    PN532_DEBUG("\n");
 
     gpio_set_level(obj->_ss, 1);
-    // gpio_set_level(PN532_SS, 1);
 }
 
 /**************************************************************************/
@@ -1223,7 +1354,7 @@ uint8_t pn532_getDataTarget(pn532_t *obj, uint8_t *cmd, uint8_t *cmdlen)
     pn532_packetbuffer[0] = 0x86;
     if (!pn532_sendCommandCheckAck(obj, pn532_packetbuffer, 1, 1000))
     {
-        configPRINTF(("Error en ack\n"));
+        PN532_DEBUG("Error en ack\n");
         return false;
     }
 
@@ -1286,10 +1417,9 @@ void pn532_writecommand(pn532_t *obj, uint8_t *cmd, uint8_t cmdlen)
 
     cmdlen++;
 
-    configPRINTF(("Sending: \n"));
+    PN532_DEBUG("Sending:");
 
     gpio_set_level(obj->_ss, 0);
-    // gpio_set_level(PN532_SS, 0);
     PN532_DELAY(10); // or whatever the PN532_DELAY is for waking up the board
     pn532_spi_write(obj, PN532_SPI_DATAWRITE);
 
@@ -1304,21 +1434,20 @@ void pn532_writecommand(pn532_t *obj, uint8_t *cmd, uint8_t cmdlen)
     pn532_spi_write(obj, PN532_HOSTTOPN532);
     checksum += PN532_HOSTTOPN532;
 
-    configPRINTF((" %02x %02x %02x %02x %02x %02x \n ", (uint8_t)PN532_PREAMBLE, (uint8_t)PN532_PREAMBLE, (uint8_t)PN532_STARTCODE2, (uint8_t)cmdlen, (uint8_t)(~cmdlen + 1), (uint8_t)PN532_HOSTTOPN532));
+    PN532_DEBUG(" %02x %02x %02x %02x %02x %02x", (uint8_t)PN532_PREAMBLE, (uint8_t)PN532_PREAMBLE, (uint8_t)PN532_STARTCODE2, (uint8_t)cmdlen, (uint8_t)(~cmdlen + 1), (uint8_t)PN532_HOSTTOPN532);
 
     for (uint8_t i = 0; i < cmdlen - 1; i++)
     {
         pn532_spi_write(obj, cmd[i]);
         checksum += cmd[i];
-        configPRINTF((" %02x \n", cmd[i]));
+        PN532_DEBUG(" %02x", cmd[i]);
     }
 
     pn532_spi_write(obj, ~checksum);
     pn532_spi_write(obj, PN532_POSTAMBLE);
     gpio_set_level(obj->_ss, 1);
-    // gpio_set_level(PN532_SS, 1);
 
-    configPRINTF((" %02x %02x\n", (uint8_t)~checksum, (uint8_t)PN532_POSTAMBLE));
+    PN532_DEBUG(" %02x %02x\n", (uint8_t)~checksum, (uint8_t)PN532_POSTAMBLE);
 }
 /************** low level SPI */
 
@@ -1332,24 +1461,19 @@ void pn532_spi_write(pn532_t *obj, uint8_t c)
 {
     int8_t i;
     gpio_set_level(obj->_clk, 1);
-    // gpio_set_level(PN532_SCK, 1);
 
     for (i = 0; i < 8; i++)
     {
         gpio_set_level(obj->_clk, 0);
-        // gpio_set_level(PN532_SCK, 0);
         if (c & _BV(i))
         {
             gpio_set_level(obj->_mosi, 1);
-            // gpio_set_level(PN532_MOSI, 1);
         }
         else
         {
             gpio_set_level(obj->_mosi, 0);
-            // gpio_set_level(PN532_MOSI, 0);
         }
         gpio_set_level(obj->_clk, 1);
-        // gpio_set_level(PN532_SCK, 1);
     }
 }
 
@@ -1365,77 +1489,16 @@ uint8_t pn532_spi_read(pn532_t *obj)
     x = 0;
 
     gpio_set_level(obj->_clk, 1);
-    // gpio_set_level(PN532_SCK, 1);
 
     for (i = 0; i < 8; i++)
     {
-        if (gpio_get_level(obj->_miso)) // (gpio_set_level(PN532_MISO, 1)) //(gpio_get_level(obj->_miso))
+        if (gpio_get_level(obj->_miso))
         {
             x |= _BV(i);
         }
         gpio_set_level(obj->_clk, 0);
         gpio_set_level(obj->_clk, 1);
-        // gpio_set_level(PN532_SCK, 0);
-        // gpio_set_level(PN532_SCK, 1);
     }
 
     return x;
 }
-
-
-
-// // Start sending and receiving data from PN532
-// void pn532_init(spi_device_handle_t spi)
-// {
-//    // Delay 1 second
-//    PN532_DELAY(1000);
-//    packetBuffer[0] = COMMAND_GETFIRMWAREVERSION;
-
-//    // test command
-
-// }
-
-
-
-
-// int main (void)
-// {
-//     esp_err_t ret;
-//     spi_device_handle_t spi;
-
-//     // Cnfigure the spi bus
-//     spi_bus_config_t buscfg = {
-//             .miso_io_num = PIN_NUM_MISO,
-//             .mosi_io_num = PIN_NUM_MOSI,
-//             .sclk_io_num = PIN_NUM_CLK,
-//             .quadwp_io_num = -1,
-//             .quadhd_io_num = -1
-//     };
-    
-//     // Configure the spi interface
-//     spi_device_interface_config_t devcfg = {
-//         .command_bits = 0,
-//         .address_bits = 0,
-//         .dummy_bits = 0,
-//         .clock_speed_hz = 10*1000*1000,  // Clock out at 10 MHz
-//         .duty_cycle_pos = 128,
-//         .mode = 0,                  // spi mode 0
-//         // .spics_io_num = PIN_NUM_CS, // SS pin
-//         // .cs_ena_posttrans = 3,
-//         // .cs_ena_pretrans = 0,
-//         .queue_size = 3             // Number of transactions to queue at a time
-//     };
-
-//     // Initialise spi bus
-//     ret = spi_bus_initialize(PN532_HOST, &buscfg, DMA_CHAN);
-//     ESP_ERROR_CHECK(ret);
-
-//     // Register device
-//     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-//     ESP_ERROR_CHECK(ret);
-
-//     // Interact with device
-//     pn532_init(spi);
-
-//     return 0;
-// }

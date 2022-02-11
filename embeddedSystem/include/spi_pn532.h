@@ -2,11 +2,11 @@
 #define SPI_PN532_H
 
 
-// SPI pins
-#define PN532_MISO 12
-#define PN532_MOSI 13
-#define PN532_SCK  14 // SCK
-#define PN532_SS   15 // SS
+// SPI pins             // VSPI
+#define PN532_MISO 12   // 19
+#define PN532_MOSI 13   // 23
+#define PN532_SCK  14   // 18
+#define PN532_SS   15   // 5
 
 #define PN532_PREAMBLE                      (0x00)
 #define PN532_STARTCODE1                    (0x00)

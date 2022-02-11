@@ -182,24 +182,38 @@ void nfc_task(void *pvParameter)
             // PN532 probably timed out waiting for a card
             configPRINTF(("Timed out waiting for a card \n"));
         }
-        success = pn532_inListPassiveTarget(&nfc);
+        uint8_t keyData[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+        success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, uidLength, 0x06, 1, keyData);
         if(success)
         {
-        configPRINTF(("Target inlisted \n"));
+        configPRINTF(("Authenticated\n"));
+        vTaskDelay(1000 / portTICK_RATE_MS); 
         }
         else
         {
-            configPRINTF(("Error inlisting target \n"));
+            configPRINTF(("Authentication failed\n"));
         }
 
+
+
+        // success = pn532_inListPassiveTarget(&nfc);
+        // if(success)
+        // {
+        // configPRINTF(("Target inlisted \n"));
+        // }
+        // else
+        // {
+        //     configPRINTF(("Error inlisting target \n"));
+        // }
+
         uint8_t dataMifare[16] = {0};
-        // uint8_t keyData[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+        // uint8_t keyData[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
         // for(int i = 0; i < uidLength; i++)
         // {
         //     configPRINTF(("UID Value: \t"));
         //     configPRINTF(("%02x \n", uid[i]));
         // }
-        // success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, &uidLength, 0x06, 0, keyData);
+        // success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, uidLength, 4, 0, keyData);
         // if(success)
         // {
         //     configPRINTF(("Authenticated \n"));
@@ -207,17 +221,38 @@ void nfc_task(void *pvParameter)
         success = pn532_mifareclassic_ReadDataBlock(&nfc, 0x06,  dataMifare);
         if(success)
         {
+            configPRINTF(("Read successful \n"));
             for(int i = 0; i < sizeof(dataMifare); i++)
             {
             configPRINTF(("Read data: \t"));
             configPRINTF(("%02x \n", dataMifare[i]));
             }
+            vTaskDelay(1000 / portTICK_RATE_MS); 
         }
         else
         {
-            configPRINTF(("Error reading data \n"));
+            configPRINTF(("Read failed \n"));
         }
-        
+
+        // Test communication line between PN532 and ESP32
+        // uint8_t data[5] = {0x00, 0x03, 0x10, 0x20, 0x30};
+        // uint8_t length = 0x05;
+        // uint8_t read[5];
+        // configPRINTF(("Diagnose command: \t"));
+        // success = pn532_sendCommandCheckAck(&nfc, data, length, 1000);
+        // pn532_readdata(&nfc, read, length);
+        // vTaskDelay(1000 / portTICK_RATE_MS); 
+        // if(success)
+        // {
+        //     configPRINTF(("Success \n"));
+        // }
+        // else
+        // {
+        //     configPRINTF(("Something went wrong \n"));
+        //     configPRINTF(("success: %20x \n", success));
+        // }
+        // vTaskDelay(10000 / portTICK_RATE_MS); 
+
         // uint8_t send [2] = {0x30, 0x06};
         // uint8_t sendLength = 2;
         // uint8_t dataLength = 16;
