@@ -397,13 +397,15 @@ const successScreen = ({route, navigation}) => {
 
 const nfcScreen = ({route, navigation}) => {
   // todo: check if nfc is on
-
+  const [contentType, setContentType] = useState(NFCContentType.Text);
+  const [content, setContent] = useState('Hello world');
 
   let simulation;
 
   const startSimulation = async () => {
-    const tag = new NFCTagType4(NFCContentType.Text, "Hello world");
-    simulation = await (new HCESession(tag)).start();
+    // const tag = new NFCTagType4(NFCContentType.Text, "Hello world");
+    const tag = new NFCTagType4(contentType, content);
+    simulation = await new HCESession(tag).start();
     //test
     console.log(tag.content.content);
   }
