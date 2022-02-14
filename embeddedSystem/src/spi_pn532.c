@@ -31,7 +31,7 @@
 // #define PN532_SCK  14 // SCK
 // #define PN532_SS   15 // SS
 
-//#define PN532_DEBUG_EN
+#define PN532_DEBUG_EN
 //#define MIFARE_DEBUG_EN
 
 #ifdef PN532_DEBUG_EN
@@ -1339,6 +1339,7 @@ uint8_t pn532_AsTarget(pn532_t *obj)
     pn532_readdata(obj, pn532_packetbuffer, 8);
 
     int offset = 5;
+    PN532_DEBUG(" %02x", pn532_packetbuffer[offset]);
     return (pn532_packetbuffer[offset] == 0x15);
 }
 /**************************************************************************/

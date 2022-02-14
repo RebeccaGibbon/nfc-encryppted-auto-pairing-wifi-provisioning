@@ -66,7 +66,7 @@
 
 #include "iot_uart.h"
 
-#if BLE_ENABLED
+// #if BLE_ENABLED
     #include "bt_hal_manager_adapter_ble.h"
     #include "bt_hal_manager.h"
     #include "bt_hal_gatt_server.h"
@@ -75,7 +75,7 @@
     #include "iot_ble_config.h"
     #include "iot_ble_wifi_provisioning.h"
     #include "iot_ble_numericComparison.h"
-#endif
+// #endif
 
 // Include other necessary files here
 #include "spi_pn532.h"
@@ -130,6 +130,9 @@ static void iot_uart_init( void )
 /*-----------------------------------------------------------*/
 
 
+// Include function here to check for networks and initiate ble provisioning
+// This function will then start nfc task if not able to connect
+
 void nfc_task(void *pvParameter)
 {
     configPRINTF(("Checking version data. \n"));
@@ -150,6 +153,7 @@ void nfc_task(void *pvParameter)
     configPRINTF(("Firmware ver. %d.%d \n", (versiondata >> 16) & 0xFF, (versiondata >> 8) & 0xFF));
 
     // configure board to read RFID tags
+    configPRINTF(("Configuring SAM \n");)
     pn532_SAMConfig(&nfc);
 
     configPRINTF(("Waiting for an NFC Card ... \n");)
@@ -159,115 +163,107 @@ void nfc_task(void *pvParameter)
         uint8_t success;
         uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
         uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+        
+        // Inlist smartphone
+        success = pn532_inListPassiveTarget(&nfc);
+        if (success)
+        {
+            configPRINTF(("Successfully inlisted target\n"));
+            vTaskDelay(10000 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("Could not inlist target \n"));
+        }
+
+        // Send command to select smartphone
+        uint8_t send[] = { 0x00, // CLA
+                            0xa4, // Instruction 
+                            0x04, // P1
+                            0x00, // P2
+                            0x07, // Length of AID
+                            0xd2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01, // D2760000850101 AID specified in app
+                            0x00 };// le
+        uint8_t response[32] = {0};
+        uint8_t responseLength = 32;
+        success = pn532_inDataExchange(&nfc, send, sizeof(send), response, &responseLength);
+
+        if (success)
+        {
+            configPRINTF(("Successfully exchanged data\n"));
+            vTaskDelay(1000 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("Data exchange unsuccessful \n"));
+        }
+
+        configPRINTF(("Waiting.....\n"));
+        vTaskDelay(5000 / portTICK_RATE_MS);
 
         // Wait for an ISO14443A type cards (Mifare, etc.).  When one is found
         // 'uid' will be populated with the UID, and uidLength will indicate
         // if the uid is 4 bytes (Mifare Classic) or 7 bytes (Mifare Ultralight)
-        success = pn532_readPassiveTargetID(&nfc, PN532_MIFARE_ISO14443A, uid, &uidLength, 0);
+        // success = pn532_readPassiveTargetID(&nfc, PN532_MIFARE_ISO14443A, uid, &uidLength, 0);
 
-        if (success)
-        {
-            // Display some basic information about the card
-            configPRINTF(("Found an NFC card \n"));
-            configPRINTF(("UID Length: %d bytes \n", uidLength));
-            configPRINTF(("UID Value: \n"));
-            for(int i = 0; i < uidLength; i++)
-            {
-                configPRINTF(("%02x \n", uid[i]));
-            }
-            vTaskDelay(1000 / portTICK_RATE_MS);      
-        }
-        else
-        {
-            // PN532 probably timed out waiting for a card
-            configPRINTF(("Timed out waiting for a card \n"));
-        }
-        uint8_t keyData[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-        success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, uidLength, 0x06, 1, keyData);
-        if(success)
-        {
-        configPRINTF(("Authenticated\n"));
-        vTaskDelay(1000 / portTICK_RATE_MS); 
-        }
-        else
-        {
-            configPRINTF(("Authentication failed\n"));
-        }
-
-
-
-        // success = pn532_inListPassiveTarget(&nfc);
-        // if(success)
+        // if (success)
         // {
-        // configPRINTF(("Target inlisted \n"));
+        //     // Display some basic information about the card
+        //     configPRINTF(("Found an NFC card \n"));
+        //     configPRINTF(("UID Length: %d bytes \n", uidLength));
+        //     configPRINTF(("UID Value: \n"));
+        //     for(int i = 0; i < uidLength; i++)
+        //     {
+        //         configPRINTF(("%02x \n", uid[i]));
+        //     }
+        //     vTaskDelay(1000 / portTICK_RATE_MS);
         // }
         // else
         // {
-        //     configPRINTF(("Error inlisting target \n"));
+        //     // PN532 probably timed out waiting for a card
+        //     configPRINTF(("Timed out waiting for a card \n"));
         // }
 
-        uint8_t dataMifare[16] = {0};
         // uint8_t keyData[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-        // for(int i = 0; i < uidLength; i++)
-        // {
-        //     configPRINTF(("UID Value: \t"));
-        //     configPRINTF(("%02x \n", uid[i]));
-        // }
-        // success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, uidLength, 4, 0, keyData);
+        // success = pn532_mifareclassic_AuthenticateBlock(&nfc, uid, uidLength, 0x04, 1, keyData);
         // if(success)
         // {
-        //     configPRINTF(("Authenticated \n"));
-        // }
-        success = pn532_mifareclassic_ReadDataBlock(&nfc, 0x06,  dataMifare);
-        if(success)
-        {
-            configPRINTF(("Read successful \n"));
-            for(int i = 0; i < sizeof(dataMifare); i++)
-            {
-            configPRINTF(("Read data: \t"));
-            configPRINTF(("%02x \n", dataMifare[i]));
-            }
-            vTaskDelay(1000 / portTICK_RATE_MS); 
-        }
-        else
-        {
-            configPRINTF(("Read failed \n"));
-        }
-
-        // Test communication line between PN532 and ESP32
-        // uint8_t data[5] = {0x00, 0x03, 0x10, 0x20, 0x30};
-        // uint8_t length = 0x05;
-        // uint8_t read[5];
-        // configPRINTF(("Diagnose command: \t"));
-        // success = pn532_sendCommandCheckAck(&nfc, data, length, 1000);
-        // pn532_readdata(&nfc, read, length);
-        // vTaskDelay(1000 / portTICK_RATE_MS); 
-        // if(success)
-        // {
-        //     configPRINTF(("Success \n"));
+        // configPRINTF(("Authenticated\n"));
+        // vTaskDelay(1000 / portTICK_RATE_MS);
         // }
         // else
         // {
-        //     configPRINTF(("Something went wrong \n"));
-        //     configPRINTF(("success: %20x \n", success));
+        //     configPRINTF(("Authentication failed\n"));
         // }
-        // vTaskDelay(10000 / portTICK_RATE_MS); 
 
-        // uint8_t send [2] = {0x30, 0x06};
-        // uint8_t sendLength = 2;
-        // uint8_t dataLength = 16;
-        // success = pn532_inDataExchange(&nfc, send, sendLength, dataMifare, dataLength);
+        // uint8_t dataMifare[16] = {0};
+        // success = pn532_mifareclassic_ReadDataBlock(&nfc, 0x04,  dataMifare);
         // if(success)
         // {
+        //     configPRINTF(("Read successful \n"));
         //     for(int i = 0; i < sizeof(dataMifare); i++)
         //     {
         //     configPRINTF(("Read data: \t"));
         //     configPRINTF(("%02x \n", dataMifare[i]));
         //     }
+        //     vTaskDelay(1000 / portTICK_RATE_MS); 
         // }
         // else
         // {
-        //     configPRINTF(("Error reading data \n"));
+        //     configPRINTF(("Read failed \n"));
+        // }
+
+        // Start emulation code here
+        // configPRINTF(("Starting emulation....\n"));
+        // success = pn532_AsTarget(&nfc);
+        // if(success)
+        // {
+        // configPRINTF(("Success\n"));
+        // vTaskDelay(1000 / portTICK_RATE_MS);
+        // }
+        // else
+        // {
+        //     configPRINTF(("Emulation failed\n"));
         // }
 
     }
