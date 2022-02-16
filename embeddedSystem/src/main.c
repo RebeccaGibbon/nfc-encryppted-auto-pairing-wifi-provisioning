@@ -290,17 +290,12 @@ void nfc_task(void *pvParameter)
         uint8_t ndefRead[] = { 0x00, // Class byte
                                 0xb0, // Instruction for read binary command
                                 0x00, // P1
-                                0x00, // P2 - in this case P1 and P2 represent the offset in the CC file
+                                0x01, // P2 - in this case P1 and P2 represent the offset in the CC file
                                 0x0f }; // le
         success = pn532_inDataExchange(&nfc, ndefRead, sizeof(ndefRead), response, &responseLength);
         if (success)
         {
             configPRINTF(("NDEF file read successful \n"));
-            configPRINTF(("Size of message: %02x \n", sizeof(response)));
-            // for(int i = 0; i < responseLength; i++)
-            // {
-            //     configPRINTF(("%02x \n", response[i]));
-            // }
             vTaskDelay(1000 / portTICK_RATE_MS);
         }
         else
