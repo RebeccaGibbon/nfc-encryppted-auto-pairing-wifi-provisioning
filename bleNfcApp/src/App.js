@@ -141,7 +141,7 @@ const bluetoothScreen = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.button} onPress={onScanBtDevices}>
+      <TouchableOpacity style={styles.button} onPress={() => onScanBtDevices}>
         <Text style={{color: 'snow', fontSize: 18}}>
           {'Scan for BLE Devices'}
         </Text>
@@ -253,7 +253,7 @@ const wifiScan = ({route, navigation}) => {
                     width: 300,
                   }}
                   onPress={() => {
-                    navigation.navigate('Send Password', {
+                    navigation.navigate('Send Password BLE', {
                       deviceMacAddress,
                       selectedBssid: network.bssid,
                       selectedSsid: network.ssid,
@@ -271,7 +271,7 @@ const wifiScan = ({route, navigation}) => {
   );
 };
 
-// Transfer credentials to ESP32
+// Transfer credentials to ESP32 via BLE
 const wifiProvision = ({route, navigation}) => {
   const [pwValue, setPwValue] = useState(null);
   const {deviceMacAddress, selectedBssid, selectedSsid, isConnected} =
@@ -370,7 +370,99 @@ const wifiProvision = ({route, navigation}) => {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={onConnectToNetwork(selectedBssid)}>
+        onPress={() => onConnectToNetwork(selectedBssid)}>
+        <Text style={{color: 'snow', fontSize: 18}}>{'Send'}</Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
+  );
+};
+
+// Transfer credentials to ESP32 via NFC
+const wifiProvisionNfc = ({navigation}) => {
+  const [ssidValue, setSsidValue] = useState(null);
+  const [pwValue, setPwValue] = useState(null);
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior="height"
+      keyboardVerticalOffset={-110}>
+      <Text style={{fontSize: 18, padding: 10}}>
+        Send Wi-Fi Credentials to Selected Device
+      </Text>
+      <View
+        style={{
+          backgroundColor: 'tan',
+          padding: 10,
+          borderRadius: 4,
+          height: '25%',
+          width: '90%',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <View
+          style={{
+            backgroundColor: 'wheat',
+            padding: 5,
+            borderRadius: 4,
+            height: '40%',
+            width: '100%',
+            justifyContent: 'center',
+          }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}>
+            <Text style={(styles.subText, {paddingVertical: 10})}>
+              Wi-Fi SSID:
+            </Text>
+            <TextInput
+              style={(styles.subText, styles.input)}
+              placeholder="Enter SSID here"
+              onChangeText={val => setSsidValue(val)}
+              defaultValue={ssidValue}
+              value={ssidValue}
+            />
+          </View>
+        </View>
+
+        <View
+          style={{
+            marginTop: 20,
+            padding: 5,
+            backgroundColor: 'wheat',
+            borderRadius: 4,
+            height: '40%',
+            width: '100%',
+            justifyContent: 'center',
+          }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+            }}>
+            <Text style={(styles.subText, {paddingVertical: 10})}>
+              Password:
+            </Text>
+            <TextInput
+              style={(styles.subText, styles.input)}
+              placeholder="Enter password here"
+              onChangeText={val => setPwValue(val)}
+              defaultValue={pwValue}
+              value={pwValue}
+            />
+          </View>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate('Send Password NFC', {
+          ssidValue,
+          pwValue
+        })
+        }>
         <Text style={{color: 'snow', fontSize: 18}}>{'Send'}</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
@@ -422,10 +514,43 @@ const nfcScreen = ({route, navigation}) => {
   );
 };
 
+
+const mainScreen = ({navigation}) => {
+
+return (
+  <SafeAreaView style={styles.container}>
+    <Text style={{paddingTop:30, fontSize: 18}}>
+        Please select your preferred method of data transfer:
+    </Text>
+    <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Connect Bluetooth')}>
+      <Text style={{color: 'snow', fontSize: 18}}>BLE</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Send Password NFC')}>
+      <Text style={{color: 'snow', fontSize: 18}}>NFC</Text>
+    </TouchableOpacity>
+  </SafeAreaView>
+);
+};
+
+
 function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="NFC">
+      <Stack.Navigator initialRouteName="Main Screen">
+      <Stack.Screen
+          name="Main Screen"
+          component={mainScreen}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
+            headerStyle: {
+              backgroundColor: 'cadetblue',
+            },
+            headerTintColor: 'snow',
+            headerTintStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
         <Stack.Screen
           name="Connect Bluetooth"
           component={bluetoothScreen}
@@ -441,8 +566,8 @@ function App() {
           }}
         />
         <Stack.Screen
-          name="Send Credentials"
-          component={wifiScan}
+          name="Send Password BLE"
+          component={wifiProvision}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
@@ -455,8 +580,8 @@ function App() {
           }}
         />
         <Stack.Screen
-          name="Send Password"
-          component={wifiProvision}
+          name="Send Password NFC"
+          component={wifiProvisionNfc}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
