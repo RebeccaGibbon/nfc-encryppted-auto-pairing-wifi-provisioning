@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -24,7 +24,6 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 // Wi-Fi provision
 import AwsFreertos, {
-  Characteristic,
   eventKeys,
 } from 'react-native-aws-freertos';
 // Animation
@@ -458,12 +457,12 @@ const wifiProvisionNfc = ({navigation}) => {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('Send Password NFC', {
+        onPress={() => navigation.navigate('NFC', {
           ssidValue,
           pwValue
         })
         }>
-        <Text style={{color: 'snow', fontSize: 18}}>{'Send'}</Text>
+        <Text style={{color: 'snow', fontSize: 18}}>Send</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
@@ -488,10 +487,18 @@ const successScreen = ({route, navigation}) => {
 };
 
 const nfcScreen = ({route, navigation}) => {
-  // todo: check if nfc is on
-  const [contentType, setContentType] = useState(NFCContentType.Text);
-  const [content, setContent] = useState('Hello world');
+  const {ssidValue, pwValue} = route.params;
+  // console.log('Params:' + JSON.stringify(route.params));
+  console.log("SSID:" + ssidValue);
+  console.log("Password:" + pwValue);
 
+  // todo: check if nfc is on
+  // const [contentType, setContentType] = useState(NFCContentType.Text);
+  // const [content, setContent] = useState('Hello world');
+  const content = ssidValue + pwValue;
+  const contentType = NFCContentType.Text;
+  console.log("Content:" + content);
+  
   let simulation;
 
   const startSimulation = async () => {
@@ -554,6 +561,20 @@ function App() {
         <Stack.Screen
           name="Connect Bluetooth"
           component={bluetoothScreen}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
+            headerStyle: {
+              backgroundColor: 'cadetblue',
+            },
+            headerTintColor: 'snow',
+            headerTintStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Stack.Screen
+          name="Send Credentials"
+          component={wifiScan}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {
