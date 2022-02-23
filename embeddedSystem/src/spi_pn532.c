@@ -31,7 +31,7 @@
 // #define PN532_SCK  14 // SCK
 // #define PN532_SS   15 // SS
 
-#define PN532_DEBUG_EN
+// #define PN532_DEBUG_EN
 //#define MIFARE_DEBUG_EN
 
 #ifdef PN532_DEBUG_EN
@@ -444,6 +444,7 @@ bool pn532_inDataExchange(pn532_t *obj, uint8_t *send, uint8_t sendLength, uint8
     }
 
     pn532_readdata(obj, pn532_packetbuffer, sizeof(pn532_packetbuffer));
+    
 
     if (pn532_packetbuffer[0] == 0 && pn532_packetbuffer[1] == 0 && pn532_packetbuffer[2] == 0xff)
     {
@@ -470,9 +471,18 @@ bool pn532_inDataExchange(pn532_t *obj, uint8_t *send, uint8_t sendLength, uint8
 
             for (i = 0; i < length; ++i)
             {
+                // store data in response buffer
                 response[i] = pn532_packetbuffer[8 + i];
+                PN532_DEBUG("Saving response: %02x\n", response[i]);
             }
             *responseLength = length;
+
+            // Save data to respose buffer here
+            for(int i = 0; i < sizeof(pn532_packetbuffer); i++)
+            {
+                // PN532_DEBUG("Saving buffer into response\n");
+                response[i] = pn532_packetbuffer[i];
+            }
 
             return true;
         }
