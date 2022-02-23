@@ -20,7 +20,7 @@
     "react-native-aws-freertos": "^0.1.23",
     "react-native-hce": "^0.1.2",
     "react-native-safe-area-context": "^3.3.2",
-    "react-native-screens": "^3.10.1"
+    "react-native-screens": "^3.12.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
