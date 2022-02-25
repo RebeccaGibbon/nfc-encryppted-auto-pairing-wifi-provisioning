@@ -24,8 +24,15 @@
 
 char ssid[maxSsid] = "";
 char password[maxPassword] = "";
-
+int wifiStatus = 1;
 static pn532_t nfc;
+
+
+int returnWifiStatus()
+{
+    return wifiStatus;
+}
+/*-----------------------------------------------------------*/
 
 // Store network ssid and password in nvs flash
 void storeCredentials()
@@ -87,8 +94,6 @@ void connectToNetwork()
     // Setup parameters
     size_t xSSIDLength;
     size_t xPasswordLength;
-    char * pcSSID = malloc(xSSIDLength);
-    char * pcPassword = malloc(xPasswordLength);
 
     // Get the size of ssid and network password
     // esp_err_tnvs_get_str(nvs_handle_t handle, const char *key, char *out_value, size_t *length)
@@ -107,6 +112,9 @@ void connectToNetwork()
 
     configPRINTF(("ssid length: %d \n", xSSIDLength));
     configPRINTF(("password length: %d \n", xPasswordLength));
+
+    char * pcSSID = malloc(xSSIDLength);
+    char * pcPassword = malloc(xPasswordLength);
 
     // Read from storage
     err = nvs_get_str(nvs_read_handler, "ssid", pcSSID, &xSSIDLength);
@@ -140,6 +148,7 @@ void connectToNetwork()
     if(xWifiStatus == eWiFiSuccess)
     {
         configPRINTF(("Connected to network \n"));
+        wifiStatus = 0;
     }
     else
     {
