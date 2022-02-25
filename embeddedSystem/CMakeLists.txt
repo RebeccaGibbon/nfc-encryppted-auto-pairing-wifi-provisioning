@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.13)
 project(ble_nfc_app)
 
 add_executable(ble_nfc_demo src/main.c
-                            src/spi_pn532.c)
+                            src/spi_pn532.c
+                            src/mqtt_runner.c
+                            src/nfc_tasks.c)
 
 # Tell IDF build to link against this target.
 set(IDF_PROJECT_EXECUTABLE ble_nfc_demo)
