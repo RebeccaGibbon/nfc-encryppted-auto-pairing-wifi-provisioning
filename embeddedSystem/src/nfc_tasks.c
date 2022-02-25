@@ -8,6 +8,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "nvs_flash.h"
+
 // Include other necessary files here
 #include "spi_pn532.h"
 #include "nfc_tasks.h"
@@ -25,7 +27,39 @@ char password[maxPassword] = "";
 
 static pn532_t nfc;
 
+// Store network ssid and password in nvs flash
+void storeCredentials()
+{
+    // Write ssid and password to nvs flash
+    nvs_handle nvs_write_handler;
+    esp_err_t err;
+    // Open storage partition
+    err = nvs_open("storage", NVS_READWRITE, &nvs_write_handler);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to open storage\n"));
+    }
+    // Store ssid and password in nvs flash storage
+    // esp_err_tnvs_set_str(nvs_handle_t handle, const char *key, const char *value)
+    // key is limited to 14 characters
+    // value is the string to store. This is limited to 4000 bytes
+    err = nvs_set_str(nvs_write_handler, "ssid", clientCredentialSsid);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to write ssid\n"));
+    }
+    err = nvs_set_str(nvs_write_handler, "password", clientCredentialPassword);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to write password\n"));
+    }
+    // Close storage partition
+    nvs_close(nvs_write_handler);
 
+}
+/*-----------------------------------------------------------*/
+
+// Retrieve credentials from flash and connect to network
 void connectToNetwork()
 {
     WIFINetworkParams_t xNetworkParams;
@@ -41,14 +75,52 @@ void connectToNetwork()
         configPRINTF(("Failed to initialize Wi-Fi library \n"));
     }
 
+    nvs_handle nvs_read_handler;
+    esp_err_t err;
+    // Open storage partition
+    err = nvs_open("storage", NVS_READWRITE, &nvs_read_handler);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to open storage\n"));
+    }
+
     // Setup parameters
-    const char * pcSSID = clientCredentialSsid;
-    size_t xSSIDLength = strlen( pcSSID );
-    const char * pcPassword = clientCredentialPassword;
-    size_t xPasswordLength = strlen( pcPassword );
+    size_t xSSIDLength;
+    size_t xPasswordLength;
+    char * pcSSID = malloc(xSSIDLength);
+    char * pcPassword = malloc(xPasswordLength);
+
+    // Get the size of ssid and network password
+    // esp_err_tnvs_get_str(nvs_handle_t handle, const char *key, char *out_value, size_t *length)
+    // out_value is a pointer to string used to store data
+    // length points to variable holding length of out_value
+    err = nvs_get_str(nvs_read_handler, "ssid", NULL, &xSSIDLength);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to read ssid size\n"));
+    }
+    err = nvs_get_str(nvs_read_handler, "password", NULL, &xPasswordLength);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to read password size\n"));
+    }
 
     configPRINTF(("ssid length: %d \n", xSSIDLength));
     configPRINTF(("password length: %d \n", xPasswordLength));
+
+    // Read from storage
+    err = nvs_get_str(nvs_read_handler, "ssid", pcSSID, &xSSIDLength);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to read ssid\n"));
+    }
+    err = nvs_get_str(nvs_read_handler, "password", pcPassword, &xPasswordLength);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to read password\n"));
+    }
+    // Close storage partition
+    nvs_close(nvs_read_handler);
 
     memcpy( xNetworkParams.ucSSID, pcSSID, xSSIDLength );
     xNetworkParams.ucSSIDLength = xSSIDLength;
@@ -282,6 +354,7 @@ void nfc_task(void *pvParameter)
             configPRINTF(("password: %s \n", clientCredentialPassword));
 
             // Store credentials
+            storeCredentials();
             connectToNetwork();
             // Run mqtt demo
             // DEMO_RUNNER_RunDemos();
