@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "iot_wifi.h"
+#include "esp_system.h"
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
@@ -27,7 +28,7 @@ char password[maxPassword] = "";
 int wifiStatus = 1;
 static pn532_t nfc;
 
-
+// Poll Wi-Fi connection status for mqtt demo
 int returnWifiStatus()
 {
     return wifiStatus;
@@ -160,6 +161,18 @@ void connectToNetwork()
 
 void nfc_task(void *pvParameter)
 {
+    uint8_t mac[6];
+    esp_err_t err;
+    err = esp_read_mac(&mac, 2);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to read mac address\n"));
+    }
+    else
+    {
+        configPRINTF(("Checking device MAC: %02x%02x%02x%02x%02x%02x \n", mac[0], mac[1],mac[2],mac[3],mac[4],mac[5]));
+    }
+
     configPRINTF(("Checking version data. \n"));
     pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
     pn532_begin(&nfc);
