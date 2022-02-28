@@ -238,13 +238,13 @@ static int _initialize (context_t * pContext)
         /* Wait for network configured for the demo to be initialized. */
             if( pContext->networkTypes != AWSIOT_NETWORK_TYPE_NONE )
             {
-                configPRINTF(( "Checking for connected networks. " ));
+                configPRINTF(( "Checking for connected networks. \n" ));
                 connectedNetwork = _getConnectedNetwork( pContext );
 
                 if( connectedNetwork == AWSIOT_NETWORK_TYPE_NONE )
                 {
                     /* Network not yet initialized. Block for a network to be initialized. */
-                    configPRINTF(( "No networks connected for the demo. Waiting for a network connection. " ));
+                    configPRINTF(( "No networks connected for the demo. Waiting for a network connection. \n" ));
                     connectedNetwork = _waitForNetworkConnection( pContext );
                 }
             }

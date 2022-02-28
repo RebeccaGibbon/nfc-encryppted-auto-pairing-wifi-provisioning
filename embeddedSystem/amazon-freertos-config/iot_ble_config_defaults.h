@@ -34,6 +34,8 @@
 #ifndef _IOT_BLE_CONFIG_DEFAULTS_H_
 #define _IOT_BLE_CONFIG_DEFAULTS_H_
 
+#include "nfc_tasks.h"
+
 /**
  * @brief UUID used to uniquely identify a GATT server instance
  *
@@ -266,7 +268,7 @@
  */
 #if ( IOT_BLE_ENABLE_FREERTOS_GATT_SERVICES == 1 )
     #ifndef IOT_BLE_ENABLE_WIFI_PROVISIONING
-        #define IOT_BLE_ENABLE_WIFI_PROVISIONING    ( 1 )
+        #define IOT_BLE_ENABLE_WIFI_PROVISIONING    ( 0 )
     #endif
 #else
     #define IOT_BLE_ENABLE_WIFI_PROVISIONING        ( 1 )
