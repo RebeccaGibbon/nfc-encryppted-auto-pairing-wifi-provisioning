@@ -359,7 +359,7 @@ import AwsFreertos, {
  
        <TouchableOpacity
          style={styles.button}
-         onPress={() => onConnectToNetwork(selectedBssid)}>
+         onPress={onConnectToNetwork(selectedBssid)}>
          <Text style={{color: 'snow', fontSize: 18}}>{'Send'}</Text>
        </TouchableOpacity>
      </KeyboardAvoidingView>
