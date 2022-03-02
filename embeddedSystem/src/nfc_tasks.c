@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
+// #include <stdlib.h>
 
 #include "iot_wifi.h"
+#include "iot_ble.h"
 #include "esp_system.h"
 
 /* FreeRTOS includes. */
@@ -164,6 +165,8 @@ void nfc_task(void *pvParameter)
     uint8_t mac[6];
     esp_err_t err;
     err = esp_read_mac(&mac, 2);
+    // below gives an error as custom mac address has not been set
+    // err =  esp_efuse_mac_get_custom(&mac);
     if(err != ESP_OK)
     {
         configPRINTF(("Failed to read mac address\n"));
@@ -172,6 +175,11 @@ void nfc_task(void *pvParameter)
     {
         configPRINTF(("Checking device MAC: %02x%02x%02x%02x%02x%02x \n", mac[0], mac[1],mac[2],mac[3],mac[4],mac[5]));
     }
+    // configPRINTF(("Checking device MAC: %s \n", IOT_BLE_ADVERTISING_UUID));
+
+    // esp_bt_uuid_t pxESPuuid[6];
+    // _advParams
+        
 
     configPRINTF(("Checking version data. \n"));
     pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
@@ -199,8 +207,8 @@ void nfc_task(void *pvParameter)
     while (1)
     {
         uint8_t success;
-        uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
-        uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
+        // uint8_t uid[] = {0, 0, 0, 0, 0, 0, 0}; // Buffer to store the returned UID
+        // uint8_t uidLength;                     // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
         
         // Inlist smartphone
         success = pn532_inListPassiveTarget(&nfc);
