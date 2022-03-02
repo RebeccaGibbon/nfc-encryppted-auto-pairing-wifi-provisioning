@@ -163,6 +163,11 @@ void connectToNetwork()
     else
     {
         configPRINTF(("Failed to connect to network \n"));
+        while(WIFI_IsConnected(&xNetworkParams) == pdFALSE)
+        {
+            configPRINTF(("Reconnecting \n"));
+            xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
+        }
     }
 
 }
