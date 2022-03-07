@@ -248,7 +248,7 @@ void nfc_task(void *pvParameter)
             if (success)
             {
                 configPRINTF(("Successfully inlisted target\n"));
-                vTaskDelay(10000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
@@ -281,7 +281,7 @@ void nfc_task(void *pvParameter)
             if (success)
             {
                 configPRINTF(("Tag selection successful \n"));
-                vTaskDelay(1000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
@@ -300,7 +300,7 @@ void nfc_task(void *pvParameter)
             if (success)
             {
                 configPRINTF(("Capability container selection successful \n"));
-                vTaskDelay(1000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
@@ -318,7 +318,7 @@ void nfc_task(void *pvParameter)
             if (success)
             {
                 configPRINTF(("Capability container read successful \n"));
-                vTaskDelay(1000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
@@ -338,7 +338,7 @@ void nfc_task(void *pvParameter)
             if (success)
             {
                 configPRINTF(("NDEF file read successful \n"));
-                vTaskDelay(1000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
@@ -356,7 +356,7 @@ void nfc_task(void *pvParameter)
             if (success)
             {
                 configPRINTF(("NDEF file length read successful \n"));
-                vTaskDelay(1000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
@@ -430,7 +430,7 @@ void nfc_task(void *pvParameter)
                     connectToNetwork();
                 // }
 
-                vTaskDelay(1000 / portTICK_RATE_MS);
+                vTaskDelay(10 / portTICK_RATE_MS);
             }
             else
             {
