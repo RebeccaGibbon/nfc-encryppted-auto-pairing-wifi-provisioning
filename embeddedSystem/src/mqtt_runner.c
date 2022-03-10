@@ -42,6 +42,7 @@
 
 #include "mqtt_runner.h"
 #include "nfc_tasks.h"
+#include "wifi.h"
 
 
 #define PRIORITY    ( tskIDLE_PRIORITY + 5 )

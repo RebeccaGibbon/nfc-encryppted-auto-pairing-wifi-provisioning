@@ -14,6 +14,7 @@
 // Include other necessary files here
 #include "spi_pn532.h"
 #include "nfc_tasks.h"
+#include "wifi.h"
 #include "aws_clientcredential.h"
 
 #include "iot_ble_wifi_provisioning.h"
@@ -28,7 +29,7 @@
 
 char ssid[maxSsid] = "";
 char password[maxPassword] = "";
-int wifiStatus = 1;
+// int wifiStatus = 1;
 static pn532_t nfc;
 // bool mode = 1;
 
@@ -37,12 +38,12 @@ static pn532_t nfc;
 //     return mode;
 // }
 
-// Poll Wi-Fi connection status for mqtt demo
-int returnWifiStatus()
-{
-    return wifiStatus;
-}
-/*-----------------------------------------------------------*/
+// // Poll Wi-Fi connection status for mqtt demo
+// int returnWifiStatus()
+// {
+//     return wifiStatus;
+// }
+// /*-----------------------------------------------------------*/
 
 // Store network ssid and password in nvs flash
 void storeCredentials()
@@ -76,109 +77,105 @@ void storeCredentials()
 }
 /*-----------------------------------------------------------*/
 
-// Retrieve credentials from flash and connect to network
-void connectToNetwork()
-{
-    WIFINetworkParams_t xNetworkParams;
-    WIFIReturnCode_t xWifiStatus;
-    // Ensure Wi-fi module is on
-    xWifiStatus = WIFI_On();
-    if(xWifiStatus == eWiFiSuccess)
-    {
-        configPRINTF(("Wi-Fi library initialized \n"));
-    }
-    else
-    {
-        configPRINTF(("Failed to initialize Wi-Fi library \n"));
-    }
+// // Retrieve credentials from flash and connect to network
+// void connectToNetwork()
+// {
+//     WIFINetworkParams_t xNetworkParams;
+//     WIFIReturnCode_t xWifiStatus;
+//     // Ensure Wi-fi module is on
+//     xWifiStatus = WIFI_On();
+//     if(xWifiStatus == eWiFiSuccess)
+//     {
+//         configPRINTF(("Wi-Fi library initialized \n"));
+//     }
+//     else
+//     {
+//         configPRINTF(("Failed to initialize Wi-Fi library \n"));
+//     }
 
-    nvs_handle nvs_read_handler;
-    esp_err_t err;
-    // Open storage partition
-    err = nvs_open("storage", NVS_READWRITE, &nvs_read_handler);
-    if(err != ESP_OK)
-    {
-        configPRINTF(("Failed to open storage\n"));
-    }
+//     nvs_handle nvs_read_handler;
+//     esp_err_t err;
+//     // Open storage partition
+//     err = nvs_open("storage", NVS_READWRITE, &nvs_read_handler);
+//     if(err != ESP_OK)
+//     {
+//         configPRINTF(("Failed to open storage\n"));
+//     }
 
-    // Setup parameters
-    size_t xSSIDLength;
-    size_t xPasswordLength;
+//     // Setup parameters
+//     size_t xSSIDLength;
+//     size_t xPasswordLength;
 
-    // Get the size of ssid and network password
-    // esp_err_tnvs_get_str(nvs_handle_t handle, const char *key, char *out_value, size_t *length)
-    // out_value is a pointer to string used to store data
-    // length points to variable holding length of out_value
-    err = nvs_get_str(nvs_read_handler, "ssid", NULL, &xSSIDLength);
-    if(err != ESP_OK)
-    {
-        configPRINTF(("Failed to read ssid size\n"));
-    }
-    err = nvs_get_str(nvs_read_handler, "password", NULL, &xPasswordLength);
-    if(err != ESP_OK)
-    {
-        configPRINTF(("Failed to read password size\n"));
-    }
+//     // Get the size of ssid and network password
+//     // esp_err_tnvs_get_str(nvs_handle_t handle, const char *key, char *out_value, size_t *length)
+//     // out_value is a pointer to string used to store data
+//     // length points to variable holding length of out_value
+//     err = nvs_get_str(nvs_read_handler, "ssid", NULL, &xSSIDLength);
+//     if(err != ESP_OK)
+//     {
+//         configPRINTF(("Failed to read ssid size\n"));
+//     }
+//     err = nvs_get_str(nvs_read_handler, "password", NULL, &xPasswordLength);
+//     if(err != ESP_OK)
+//     {
+//         configPRINTF(("Failed to read password size\n"));
+//     }
 
-    configPRINTF(("ssid length: %d \n", xSSIDLength));
-    configPRINTF(("password length: %d \n", xPasswordLength));
+//     configPRINTF(("ssid length: %d \n", xSSIDLength));
+//     configPRINTF(("password length: %d \n", xPasswordLength));
 
-    char * pcSSID = malloc(xSSIDLength);
-    char * pcPassword = malloc(xPasswordLength);
+//     char * pcSSID = malloc(xSSIDLength);
+//     char * pcPassword = malloc(xPasswordLength);
 
-    // Read from storage
-    err = nvs_get_str(nvs_read_handler, "ssid", pcSSID, &xSSIDLength);
-    if(err != ESP_OK)
-    {
-        configPRINTF(("Failed to read ssid\n"));
-    }
-    err = nvs_get_str(nvs_read_handler, "password", pcPassword, &xPasswordLength);
-    if(err != ESP_OK)
-    {
-        configPRINTF(("Failed to read password\n"));
-    }
-    // Close storage partition
-    nvs_close(nvs_read_handler);
+//     // Read from storage
+//     err = nvs_get_str(nvs_read_handler, "ssid", pcSSID, &xSSIDLength);
+//     if(err != ESP_OK)
+//     {
+//         configPRINTF(("Failed to read ssid\n"));
+//     }
+//     err = nvs_get_str(nvs_read_handler, "password", pcPassword, &xPasswordLength);
+//     if(err != ESP_OK)
+//     {
+//         configPRINTF(("Failed to read password\n"));
+//     }
+//     // Close storage partition
+//     nvs_close(nvs_read_handler);
 
-    memcpy( xNetworkParams.ucSSID, pcSSID, xSSIDLength );
-    xNetworkParams.ucSSIDLength = xSSIDLength;
-    xNetworkParams.xSecurity = clientcredentialWIFI_SECURITY;
+//     memcpy( xNetworkParams.ucSSID, pcSSID, xSSIDLength );
+//     xNetworkParams.ucSSIDLength = xSSIDLength;
+//     xNetworkParams.xSecurity = clientcredentialWIFI_SECURITY;
 
-    if( ( xNetworkParams.xSecurity == eWiFiSecurityWPA2 ) ||
-        ( xNetworkParams.xSecurity == eWiFiSecurityWPA ) )
-    {
-        memcpy( xNetworkParams.xPassword.xWPA.cPassphrase, pcPassword, xPasswordLength );
-        xNetworkParams.xPassword.xWPA.ucLength = xPasswordLength;
-    }
+//     if( ( xNetworkParams.xSecurity == eWiFiSecurityWPA2 ) ||
+//         ( xNetworkParams.xSecurity == eWiFiSecurityWPA ) )
+//     {
+//         memcpy( xNetworkParams.xPassword.xWPA.cPassphrase, pcPassword, xPasswordLength );
+//         xNetworkParams.xPassword.xWPA.ucLength = xPasswordLength;
+//     }
 
-    // Connect
-    xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
-    vTaskDelay(4000);
+//     // Connect
+//     xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
+//     vTaskDelay(4000);
 
-    if(xWifiStatus == eWiFiSuccess)
-    {
-        configPRINTF(("Connected to network \n"));
-        wifiStatus = 0;
-    }
-    else
-    {
-        configPRINTF(("Failed to connect to network \n"));
-        while(WIFI_IsConnected(&xNetworkParams) == pdFALSE)
-        {
-            configPRINTF(("Reconnecting \n"));
-            xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
-        }
-    }
+//     if(xWifiStatus == eWiFiSuccess)
+//     {
+//         configPRINTF(("Connected to network \n"));
+//         wifiStatus = 0;
+//     }
+//     else
+//     {
+//         configPRINTF(("Failed to connect to network \n"));
+//         while(WIFI_IsConnected(&xNetworkParams) == pdFALSE)
+//         {
+//             configPRINTF(("Reconnecting \n"));
+//             xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
+//         }
+//     }
 
-}
-/*-----------------------------------------------------------*/
+// }
+// /*-----------------------------------------------------------*/
 
 void nfc_task(void *pvParameter)
 {
-    // Determine if ble or nfc provisioning was selected
-    // nfc = 0 and ble = 1
-    // Default mode is nfc
-
     // Get ble mac address
     uint8_t mac[6];
     esp_err_t err;
@@ -191,290 +188,217 @@ void nfc_task(void *pvParameter)
     {
         configPRINTF(("Checking device MAC: %02x%02x%02x%02x%02x%02x \n", mac[0], mac[1],mac[2],mac[3],mac[4],mac[5]));
     }
-    // can do ble testing here
-    // bool test;
-    // if(mode == 1)
-    // {
-    //     configPRINTF(("BLE provisioning \n"));
-    //     // BLE_PROVISIONING = 1;
-    //     // Include logic for getting mac address 
-    //     // and sending that apdu to smartphone
-    //     test = IotBleWifiProv_Init();
-    //     if( test != pdTRUE )
-    //     {
-    //         configPRINTF(("Could not initialize BLE provisioning \n"));
-    //     }
-    //     if( test == true )
-    //     {
-    //         if( xWiFiConnectTaskInitialize() != pdTRUE )
-    //         {
-    //             configPRINTF(("Could not initialize Wi-fi task \n"));
-    //             test = false;
-    //         }
-    //     }
-    // }
-    
-    // if(mode == 0)
-    // {
-        configPRINTF(("Checking version data. \n"));
-        pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
-        pn532_begin(&nfc);
 
-        uint32_t versiondata = pn532_getFirmwareVersion(&nfc);
-        if (!versiondata)
-        {
-            configPRINTF(("Did not find PN532 board. \n"));
-            while (1)
-            {
-                vTaskDelay(1000 / portTICK_RATE_MS);
-            }
-        }
-        // Got ok data, print it out!
-        configPRINTF(("Found PN532. \n"));
-        configPRINTF(("Firmware ver. %d.%d \n", (versiondata >> 16) & 0xFF, (versiondata >> 8) & 0xFF));
+    configPRINTF(("Checking version data. \n"));
+    pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
+    pn532_begin(&nfc);
 
-        // configure board to read RFID tags
-        configPRINTF(("Configuring SAM \n");)
-        pn532_SAMConfig(&nfc);
-
-        configPRINTF(("Waiting for an NFC Card ... \n");)
-
+    uint32_t versiondata = pn532_getFirmwareVersion(&nfc);
+    if (!versiondata)
+    {
+        configPRINTF(("Did not find PN532 board. \n"));
         while (1)
         {
-            uint8_t success;                   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
-            
-            // Inlist smartphone
-            success = pn532_inListPassiveTarget(&nfc);
-            if (success)
-            {
-                configPRINTF(("Successfully inlisted target\n"));
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("Could not inlist target \n"));
-            }
+            vTaskDelay(1000 / portTICK_RATE_MS);
+        }
+    }
+    // Got ok data, print it out!
+    configPRINTF(("Found PN532. \n"));
+    configPRINTF(("Firmware ver. %02x \n", versiondata));
 
-            // NDEF detection procedure must correspond to the following steps:
-            // 1. Select the NDEF tag
-            // 2. Select the capability container
-            // 3. Read the capability container and select the NDEF file
-            // 4. Read NLEN (the NDEF length) from the NDEF file
-            //      If NLEN > 0x00 and NLEN =< max NDEF file size-2, the message is detected
-            //      If NLEN == 0x00, no NDEF message is detected
-            //      If NLEN > max NDEF file size-2, the tag is not in a valid state
-            // See specification: http://apps4android.org/nfc-specifications/NFCForum-TS-Type-4-Tag_2.0.pdf
+    // configure board to read RFID tags
+    configPRINTF(("Configuring SAM \n");)
+    pn532_SAMConfig(&nfc);
 
-            // In this case, the smartphone is emulating an NFC Type 4 tag
-            // 1. Send command to select smartphone
-            configPRINTF(("Selecting tag.... \n"));
-            uint8_t tagSelect[] = { 0x00, // Class byte
-                                    0xa4, // Instruction for select command
-                                    0x04, // P1
-                                    0x00, // P2
-                                    0x07, // Length of AID
-                                    0xd2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01, // D2760000850101 AID specified in app
-                                    0x00 }; // le
-            uint8_t response[63] = {0};
-            uint8_t responseLength = 32;
-            success = pn532_inDataExchange(&nfc, tagSelect, sizeof(tagSelect), response, &responseLength);
-            if (success)
-            {
-                configPRINTF(("Tag selection successful \n"));
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("Tag selection unsuccessful \n"));
-            }
+    configPRINTF(("Waiting for an NFC Card ... \n");)
 
-            // 2. Select the capability container
-            configPRINTF(("Selecting capability container.... \n"));
-            uint8_t ccSelect[] = {  0x00, // Class byte
-                                    0xa4, // Instruction for select command
-                                    0x00, // P1
-                                    0x0c, // P2
-                                    0x02, // lc
-                                    0xe1, 0x03 }; // File identifier
-            success = pn532_inDataExchange(&nfc, ccSelect, sizeof(ccSelect), response, &responseLength);
-            if (success)
-            {
-                configPRINTF(("Capability container selection successful \n"));
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("Capability container selection unsuccessful \n"));
-            }
-
-            // 3a. Read the capability container
-            configPRINTF(("Reading capability container binary file.... \n"));
-            uint8_t ccRead[] = { 0x00, // Class byte
-                                0xb0, // Instruction for select command
-                                0x00, // P1
-                                0x00, // P2
-                                0x0f }; // File identifier
-            success = pn532_inDataExchange(&nfc, ccRead, sizeof(ccRead), response, &responseLength);
-            if (success)
-            {
-                configPRINTF(("Capability container read successful \n"));
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("Capability container read unsuccessful \n"));
-            }
-
-
-            // 3b. Select the NDEF file
-            configPRINTF(("Reading NDEF file.... \n"));
-            uint8_t ndefSelect[] = { 0x00, // Class byte
-                                    0xa4, // Instruction for select command
-                                    0x00, // P1
-                                    0x0c, // P2
-                                    0x02, // lc
-                                    0xe1, 0x04 }; // File identifier
-            success = pn532_inDataExchange(&nfc, ndefSelect, sizeof(ndefSelect), response, &responseLength);
-            if (success)
-            {
-                configPRINTF(("NDEF file read successful \n"));
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("NDEF file read unsuccessful \n"));
-            }
-
-            // 4. Read NLEN (the NDEF length) from the NDEF file
-            configPRINTF(("Reading NDEF file length.... \n"));
-            uint8_t nlenRead[] = { 0x00, // Class byte
-                                    0xb0, // Instruction for read binary command
-                                    0x00, // P1
-                                    0x00, // P2 - in this case P1 and P2 represent the offset in the CC file
-                                    0x02 }; // le
-            success = pn532_inDataExchange(&nfc, nlenRead, sizeof(nlenRead), response, &responseLength);
-            if (success)
-            {
-                configPRINTF(("NDEF file length read successful \n"));
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("NDEF file length read unsuccessful \n"));
-            }
-            
-
-            // Reading data from the NDEF file
-            configPRINTF(("Reading data from NDEF file.... \n"));
-            uint8_t ndefRead[] = { 0x00, // Class byte
-                                    0xb0, // Instruction for read binary command
-                                    0x00, // P1
-                                    0x01, // P2 - in this case P1 and P2 represent the offset in the CC file
-                                    0x0f }; // le
-            success = pn532_inDataExchange(&nfc, ndefRead, sizeof(ndefRead), response, &responseLength);
-            if (success)
-            {
-                configPRINTF(("NDEF file read successful \n"));
-
-                // (testing) Print out response buffer
-                for(int i =0; i < (sizeof(response)); i++)
-                {
-                    configPRINTF(("message: %02x \n", response[i]));
-                }
-                
-
-                // convert utf-8 hex string to character string
-                configPRINTF(("Converting hex string....\n"));
-                int part;
-                int count1 = 0;
-                int count2 = 0;
-                int term = 0;
-                for(int i = 17; i < (sizeof(response)-21); i++)
-                {
-                    part = response[i];
-                    configPRINTF(("%c \n", part));
-
-                    // Check for ble request here
-                    // if(part == 12)
-                    // {
-                    //     configPRINTF(("BLE request....\n"));
-                    //     // mode = 1;
-                    //     break;
-                    // }
-                    if (part == 63)
-                    {
-                        // configPRINTF(("Space character.....\n"));
-                        term++;
-                    }
-
-                    if(term == 0)
-                    {
-                        // configPRINTF(("Term = 0 \n"));
-                        ssid[count1] = (char)part;
-                        count1++;
-                    }
-                    if(term ==1 && part != 63){
-                        // configPRINTF(("Term = 1 \n"));
-                        password[count2] = part;
-                        count2++;
-                    }
-                }
-                // Use store and connect functions for nfc provisioning
-                // if(mode == 0)
-                // {
-                    configPRINTF(("ssid: %s \n", clientCredentialSsid));
-                    configPRINTF(("password: %s \n", clientCredentialPassword));
-
-                    // Store credentials
-                    storeCredentials();
-                    connectToNetwork();
-                // }
-
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-            else
-            {
-                configPRINTF(("NDEF file read unsuccessful \n"));
-            }
+    while (1)
+    {
+        uint8_t success;                   // Length of the UID (4 or 7 bytes depending on ISO14443A card type)
         
-    
-
-        
-
-            // End of steps
-            // configPRINTF(("Waiting.....\n"));
-            vTaskDelay(5000 / portTICK_RATE_MS);
+        // Inlist smartphone
+        success = pn532_inListPassiveTarget(&nfc);
+        if (success)
+        {
+            configPRINTF(("Successfully inlisted target\n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("Could not inlist target \n"));
         }
 
-    // }
-    // else
-    // {
-    //     // bool ret;
-    //     // if( ret == true )
-    //     //     {
-    //     //         if( IotBleWifiProv_Init() != pdTRUE )
-    //     //         {
-    //     //             IotLogInfo( "Could not initialise ble wifi init \n" );
-    //     //             ret = false;
-    //     //         }
-    //     //         IotLogInfo( "Initialised ble wifi init \n" );
-    //     //     }
+        // NDEF detection procedure must correspond to the following steps:
+        // 1. Select the NDEF tag
+        // 2. Select the capability container
+        // 3. Read the capability container and select the NDEF file
+        // 4. Read NLEN (the NDEF length) from the NDEF file
+        //      If NLEN > 0x00 and NLEN =< max NDEF file size-2, the message is detected
+        //      If NLEN == 0x00, no NDEF message is detected
+        //      If NLEN > max NDEF file size-2, the tag is not in a valid state
+        // See specification: http://apps4android.org/nfc-specifications/NFCForum-TS-Type-4-Tag_2.0.pdf
 
-    //     //     if( ret == true )
-    //     //     {
-    //     //         if( xWiFiConnectTaskInitialize() != pdTRUE )
-    //     //         {
-    //     //             IotLogInfo( "Could not initialise wifi task \n" );
-    //     //             ret = false;
-    //     //         }
-    //     //         IotLogInfo( "Initialised wifi task \n" );
-    //     //     }
-    //     // while(1)
-    //     // {
-    //         vTaskDelay(5000 / portTICK_RATE_MS);
-    //         // if()
-    //     // }
+        // In this case, the smartphone is emulating an NFC Type 4 tag
+        // 1. Send command to select smartphone
+        configPRINTF(("Selecting tag.... \n"));
+        uint8_t tagSelect[] = { 0x00, // Class byte
+                                0xa4, // Instruction for select command
+                                0x04, // P1
+                                0x00, // P2
+                                0x07, // Length of AID
+                                0xd2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01, // D2760000850101 AID specified in app
+                                0x00 }; // le
+        uint8_t response[63] = {0};
+        uint8_t responseLength = 32;
+        success = pn532_inDataExchange(&nfc, tagSelect, sizeof(tagSelect), response, &responseLength);
+        if (success)
+        {
+            configPRINTF(("Tag selection successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("Tag selection unsuccessful \n"));
+        }
+
+        // 2. Select the capability container
+        configPRINTF(("Selecting capability container.... \n"));
+        uint8_t ccSelect[] = {  0x00, // Class byte
+                                0xa4, // Instruction for select command
+                                0x00, // P1
+                                0x0c, // P2
+                                0x02, // lc
+                                0xe1, 0x03 }; // File identifier
+        success = pn532_inDataExchange(&nfc, ccSelect, sizeof(ccSelect), response, &responseLength);
+        if (success)
+        {
+            configPRINTF(("Capability container selection successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("Capability container selection unsuccessful \n"));
+        }
+
+        // 3a. Read the capability container
+        configPRINTF(("Reading capability container binary file.... \n"));
+        uint8_t ccRead[] = { 0x00, // Class byte
+                            0xb0, // Instruction for select command
+                            0x00, // P1
+                            0x00, // P2
+                            0x0f }; // File identifier
+        success = pn532_inDataExchange(&nfc, ccRead, sizeof(ccRead), response, &responseLength);
+        if (success)
+        {
+            configPRINTF(("Capability container read successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("Capability container read unsuccessful \n"));
+        }
+
+
+        // 3b. Select the NDEF file
+        configPRINTF(("Reading NDEF file.... \n"));
+        uint8_t ndefSelect[] = { 0x00, // Class byte
+                                0xa4, // Instruction for select command
+                                0x00, // P1
+                                0x0c, // P2
+                                0x02, // lc
+                                0xe1, 0x04 }; // File identifier
+        success = pn532_inDataExchange(&nfc, ndefSelect, sizeof(ndefSelect), response, &responseLength);
+        if (success)
+        {
+            configPRINTF(("NDEF file read successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("NDEF file read unsuccessful \n"));
+        }
+
+        // 4. Read NLEN (the NDEF length) from the NDEF file
+        configPRINTF(("Reading NDEF file length.... \n"));
+        uint8_t nlenRead[] = { 0x00, // Class byte
+                                0xb0, // Instruction for read binary command
+                                0x00, // P1
+                                0x00, // P2 - in this case P1 and P2 represent the offset in the CC file
+                                0x02 }; // le
+        success = pn532_inDataExchange(&nfc, nlenRead, sizeof(nlenRead), response, &responseLength);
+        if (success)
+        {
+            configPRINTF(("NDEF file length read successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("NDEF file length read unsuccessful \n"));
+        }
         
-    // }
+
+        // Reading data from the NDEF file
+        configPRINTF(("Reading data from NDEF file.... \n"));
+        uint8_t ndefRead[] = { 0x00, // Class byte
+                                0xb0, // Instruction for read binary command
+                                0x00, // P1
+                                0x01, // P2 - in this case P1 and P2 represent the offset in the CC file
+                                0x0f }; // le
+        success = pn532_inDataExchange(&nfc, ndefRead, sizeof(ndefRead), response, &responseLength);
+        if (success)
+        {
+            configPRINTF(("NDEF file read successful \n"));
+
+            // (testing) Print out response buffer
+            for(int i =0; i < (sizeof(response)); i++)
+            {
+                configPRINTF(("message: %02x \n", response[i]));
+            }
+            
+
+            // convert utf-8 hex string to character string
+            configPRINTF(("Converting hex string....\n"));
+            int part;
+            int count1 = 0;
+            int count2 = 0;
+            int term = 0;
+            for(int i = 17; i < (sizeof(response)-21); i++)
+            {
+                part = response[i];
+                configPRINTF(("%c \n", part));
+
+                if (part == 63)
+                {
+                    term++;
+                }
+
+                if(term == 0)
+                {
+                    ssid[count1] = (char)part;
+                    count1++;
+                }
+                if(term ==1 && part != 63){
+                    password[count2] = part;
+                    count2++;
+                }
+            }
+            configPRINTF(("ssid: %s \n", clientCredentialSsid));
+            configPRINTF(("password: %s \n", clientCredentialPassword));
+
+            // Store credentials
+            storeCredentials();
+            connectToNetwork();
+        
+            vTaskDelay(10 / portTICK_RATE_MS);
+        }
+        else
+        {
+            configPRINTF(("NDEF file read unsuccessful \n"));
+        }
+    
+        // End of steps
+        vTaskDelay(5000 / portTICK_RATE_MS);
+    }
+
 }
 /*-----------------------------------------------------------*/
