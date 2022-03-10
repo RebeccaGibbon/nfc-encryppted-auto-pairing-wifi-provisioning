@@ -483,7 +483,7 @@ import AwsFreertos, {
    console.log("Password:" + pwValue);
  
    // todo: check if nfc is on
-   const content = ssidValue + " " + pwValue;
+   const content = ssidValue + "?" + pwValue;
    const contentType = NFCContentType.Text;
    console.log("Content:" + content);
    

@@ -401,7 +401,7 @@ void nfc_task(void *pvParameter)
                     //     // mode = 1;
                     //     break;
                     // }
-                    if (part == 32)
+                    if (part == 63)
                     {
                         // configPRINTF(("Space character.....\n"));
                         term++;
@@ -413,7 +413,7 @@ void nfc_task(void *pvParameter)
                         ssid[count1] = (char)part;
                         count1++;
                     }
-                    if(term ==1 && part != 32){
+                    if(term ==1 && part != 63){
                         // configPRINTF(("Term = 1 \n"));
                         password[count2] = part;
                         count2++;
