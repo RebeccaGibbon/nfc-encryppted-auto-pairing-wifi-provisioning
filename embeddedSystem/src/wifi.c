@@ -25,6 +25,58 @@ int returnWifiStatus()
 }
 /*-----------------------------------------------------------*/
 
+// Set the Wi-Fi provisioning flag
+void setProvFlag()
+{
+    nvs_handle nvs_write_handler;
+    esp_err_t err;
+    // Open storage partition
+    err = nvs_open("storage", NVS_READWRITE, &nvs_write_handler);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to open storage\n"));
+    }
+    // Set flag in nvs flash storage
+    // esp_err_t nvs_set_u8(nvs_handle_thandle, const char *key, uint8_t value)
+    err = nvs_set_u8(nvs_write_handler, "provFlag", 1);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to set flag \n"));
+    }
+    // Close storage partition
+    nvs_close(nvs_write_handler);
+}
+
+/*-----------------------------------------------------------*/
+
+// Check Wi-Fi provisioning flag to determine if the device was provisioned
+uint8_t getProvFlag()
+{
+    nvs_handle nvs_read_handler;
+    esp_err_t err;
+    uint8_t flag = 0;
+    // Open storage partition
+    err = nvs_open("storage", NVS_READWRITE, &nvs_read_handler);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Failed to open storage\n"));
+    }
+
+    // Read from storage
+    // esp_err_t nvs_get_u8(nvs_handle_thandle, const char *key, uint8_t *out_value)
+    
+    err = nvs_get_u8(nvs_read_handler, "provFlag", &flag);
+    if(err != ESP_OK)
+    {
+        configPRINTF(("Provisioning has not occured\n"));
+    }
+    // Close storage partition
+    nvs_close(nvs_read_handler);
+    return flag;
+}
+
+/*-----------------------------------------------------------*/
+
 // Retrieve credentials from flash and connect to network
 void connectToNetwork()
 {
@@ -102,7 +154,7 @@ void connectToNetwork()
 
     // Connect
     xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
-    vTaskDelay(4000);
+    vTaskDelay(10);
 
     if(xWifiStatus == eWiFiSuccess)
     {
@@ -118,6 +170,6 @@ void connectToNetwork()
             xWifiStatus = WIFI_ConnectAP(&xNetworkParams);
         }
     }
-
+    return;
 }
 /*-----------------------------------------------------------*/

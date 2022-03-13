@@ -166,6 +166,8 @@ static int _initialize (context_t * pContext)
     int status = EXIT_SUCCESS;
     bool commonLibrariesInitialized = false;
     bool semaphoreCreated = false;
+    TaskHandle_t nfcHandle = NULL;
+    BaseType_t xReturned;
 
     /* Initialize the C-SDK common libraries. This function must be called
     * once (and only once) before calling any other C-SDK function. */
@@ -221,16 +223,32 @@ static int _initialize (context_t * pContext)
     {
         if( AwsIotNetworkManager_EnableNetwork( configENABLED_NETWORKS ) != configENABLED_NETWORKS )
         {
-            configPRINTF( ("Failed to intialize all the networks configured for the device. \n") );
-            configPRINTF( ("Waiting for provisioning.... \n") );
-            // Put nfc task here....?
-            xTaskCreate(nfc_task, "nfc_task", 4096, NULL, 4, NULL);
-            while(status == EXIT_FAILURE)
+            // check provisioning flag here
+            // if provisioned, connect to wifi
+            // else follow steps below for provisioning
+            uint8_t flagStat = getProvFlag();
+            if(flagStat == 0)
             {
-                status = returnWifiStatus();
-                vTaskDelay( pdMS_TO_TICKS( 1000 ) );
+                configPRINTF( ("Waiting for provisioning.... \n") );
+                // Put nfc task here....?
+                xReturned = xTaskCreate(nfc_task, "nfc_task", 4096, NULL, 4, &nfcHandle);
+                // if( xReturned == pdPASS )
+                // {
+                //     /* The task was created.  Use the task's handle to delete the task. */
+                //     vTaskDelete( nfcHandle );
+                // }
+                while(status == EXIT_FAILURE)
+                {
+                    status = returnWifiStatus();
+                    vTaskDelay( pdMS_TO_TICKS( 1000 ) );
+                }                           
             }
-            // status = EXIT_FAILURE;
+            else
+            {
+                connectToNetwork();
+                status = EXIT_SUCCESS;
+            }
+
         }
     }
 
@@ -264,7 +282,7 @@ static int _initialize (context_t * pContext)
             IotSdk_Cleanup();
         }
     }
-
+    configPRINTF( ("status: %d \n", status) );
     return status;
 }
 /*-----------------------------------------------------------*/
