@@ -220,7 +220,6 @@ static int _initialize (context_t * pContext)
     {
         if( AwsIotNetworkManager_EnableNetwork( configENABLED_NETWORKS ) != configENABLED_NETWORKS )
         {
-            configPRINTF( ("Failed to intialize all the networks configured for the device. \n") );
             configPRINTF( ("Waiting for provisioning.... \n") );
             // Put nfc task here....?
             xTaskCreate(nfc_task, "nfc_task", 4096, NULL, 4, NULL);
