@@ -476,6 +476,45 @@ const SuccessScreen = ({route, navigation}) => {
   );
 };
 
+const BleNfcScreen = ({route, navigation}) => {
+  
+  let simulation;
+  const {BtMacModule} = NativeModules;
+
+  const startSimulation = async () => {
+    const tag = new NFCTagType4(NFCContentType.Text, "Hello world");
+    simulation = await new HCESession(tag).start();
+    //test
+    console.log(tag.content.content);
+    let str = await BtMacModule.getBtMacAddress();
+    
+    while(str.length == 0)
+    {
+      str = BtMacModule.getBtMacAddress();
+      // console.log(test);
+    }
+    console.log("str:" + JSON.stringify(str));
+    console.log(str.length);
+    // Logic to send info to create ble pair
+    if(str.length == 17){
+      AwsFreertos.startScanBtDevices();
+      AwsFreertos.connectDevice(str);
+      console.log('MAC address: ' + str);
+    }
+  }
+
+  startSimulation();
+
+  return (
+    <View style={styles.container}>
+      <LottieView source={nfcCardRead} autoPlay loop />
+      <View>
+        <Text style={{paddingTop:50, fontSize:20}}>Please tap on the NFC module to pair with ESP32</Text>
+      </View>
+    </View>
+  );
+};
+
 const NfcScreen = ({route, navigation}) => {
   const {ssidValue, pwValue} = route.params;
   // console.log('Params:' + JSON.stringify(route.params));
@@ -619,6 +658,20 @@ function App() {
         <Stack.Screen
           name="NFC"
           component={NfcScreen}
+          options={{
+            title: 'Wi-Fi Connect for ESP32',
+            headerStyle: {
+              backgroundColor: 'cadetblue',
+            },
+            headerTintColor: 'snow',
+            headerTintStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
+        <Stack.Screen
+          name="BLENFC"
+          component={BleNfcScreen}
           options={{
             title: 'Wi-Fi Connect for ESP32',
             headerStyle: {

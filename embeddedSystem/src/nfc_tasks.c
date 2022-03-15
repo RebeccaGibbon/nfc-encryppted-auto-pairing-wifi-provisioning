@@ -215,7 +215,7 @@ void nfc_task(void *pvParameter)
         if (success)
         {
             configPRINTF(("Successfully inlisted target\n"));
-            vTaskDelay(10000 / portTICK_RATE_MS);
+            vTaskDelay(10 / portTICK_RATE_MS);
         }
         else
         {
@@ -248,7 +248,7 @@ void nfc_task(void *pvParameter)
         if (success)
         {
             configPRINTF(("Tag selection successful \n"));
-            vTaskDelay(1000 / portTICK_RATE_MS);
+            vTaskDelay(10 / portTICK_RATE_MS);
         }
         else
         {
@@ -267,7 +267,7 @@ void nfc_task(void *pvParameter)
         if (success)
         {
             configPRINTF(("Capability container selection successful \n"));
-            vTaskDelay(1000 / portTICK_RATE_MS);
+            vTaskDelay(10 / portTICK_RATE_MS);
         }
         else
         {
@@ -285,7 +285,7 @@ void nfc_task(void *pvParameter)
         if (success)
         {
             configPRINTF(("Capability container read successful \n"));
-            vTaskDelay(1000 / portTICK_RATE_MS);
+            vTaskDelay(10 / portTICK_RATE_MS);
         }
         else
         {
@@ -294,7 +294,7 @@ void nfc_task(void *pvParameter)
 
 
         // 3b. Select the NDEF file
-        configPRINTF(("Reading NDEF file.... \n"));
+        configPRINTF(("Selecting NDEF file.... \n"));
         uint8_t ndefSelect[] = { 0x00, // Class byte
                                 0xa4, // Instruction for select command
                                 0x00, // P1
@@ -304,98 +304,33 @@ void nfc_task(void *pvParameter)
         success = pn532_inDataExchange(&nfc, ndefSelect, sizeof(ndefSelect), response, &responseLength);
         if (success)
         {
-            configPRINTF(("NDEF file read successful \n"));
-            vTaskDelay(1000 / portTICK_RATE_MS);
+            configPRINTF(("NDEF file select successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
         }
         else
         {
-            configPRINTF(("NDEF file read unsuccessful \n"));
+            configPRINTF(("NDEF file select unsuccessful \n"));
         }
 
-        // 4. Read NLEN (the NDEF length) from the NDEF file
-        configPRINTF(("Reading NDEF file length.... \n"));
+        // 4. Write to NDEF file
+        configPRINTF(("Writing to NDEF file.... \n"));
         uint8_t nlenRead[] = { 0x00, // Class byte
-                                0xb0, // Instruction for read binary command
+                                0xd6, // Instruction for update binary command
                                 0x00, // P1
                                 0x00, // P2 - in this case P1 and P2 represent the offset in the CC file
-                                0x02 }; // le
+                                0x05, // lc
+                                0x00, 0x06, //nlen
+                                mac[0], mac[1],mac[2],mac[3],mac[4],mac[5] }; // Bluetooth MAC address - ndef message
         success = pn532_inDataExchange(&nfc, nlenRead, sizeof(nlenRead), response, &responseLength);
         if (success)
         {
-            configPRINTF(("NDEF file length read successful \n"));
-            vTaskDelay(1000 / portTICK_RATE_MS);
+            configPRINTF(("NDEF file write successful \n"));
+            vTaskDelay(10 / portTICK_RATE_MS);
         }
         else
         {
-            configPRINTF(("NDEF file length read unsuccessful \n"));
+            configPRINTF(("NDEF file write unsuccessful \n"));
         }
-        
-
-        // Reading data from the NDEF file
-        configPRINTF(("Reading data from NDEF file.... \n"));
-        uint8_t ndefRead[] = { 0x00, // Class byte
-                                0xb0, // Instruction for read binary command
-                                0x00, // P1
-                                0x01, // P2 - in this case P1 and P2 represent the offset in the CC file
-                                0x0f }; // le
-        success = pn532_inDataExchange(&nfc, ndefRead, sizeof(ndefRead), response, &responseLength);
-        if (success)
-        {
-            configPRINTF(("NDEF file read successful \n"));
-
-            // (testing) Print out response buffer
-            for(int i =0; i < (sizeof(response)); i++)
-            {
-                configPRINTF(("message: %02x \n", response[i]));
-            }
-            
-
-            // convert utf-8 hex string to character string
-            configPRINTF(("Converting hex string....\n"));
-            int part;
-            int count1 = 0;
-            int count2 = 0;
-            int term = 0;
-            for(int i = 17; i < (sizeof(response)-21); i++)
-            {
-                part = response[i];
-                configPRINTF(("%c \n", part));
-
-                if (part == 32)
-                {
-                    // configPRINTF(("Space character.....\n"));
-                    term = 1;
-                }
-
-                if(term == 0)
-                {
-                    // configPRINTF(("Term = 0 \n"));
-                    ssid[count1] = (char)part;
-                    count1++;
-                }
-                if(term ==1 && part != 32){
-                    // configPRINTF(("Term = 1 \n"));
-                    password[count2] = part;
-                    count2++;
-                }
-            }
-            // configPRINTF(("finalString: %s \n", finalString));
-            configPRINTF(("ssid: %s \n", clientCredentialSsid));
-            configPRINTF(("password: %s \n", clientCredentialPassword));
-
-            // Store credentials
-            storeCredentials();
-            connectToNetwork();
-            // Run mqtt demo
-            // DEMO_RUNNER_RunDemos();
-
-            vTaskDelay(1000 / portTICK_RATE_MS);
-        }
-        else
-        {
-            configPRINTF(("NDEF file read unsuccessful \n"));
-        }
-
         
 
         // End of steps
