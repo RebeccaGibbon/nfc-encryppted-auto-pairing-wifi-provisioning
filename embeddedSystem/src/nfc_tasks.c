@@ -69,17 +69,17 @@ void storeCredentials()
 void nfc_task(void *pvParameter)
 {
     // Get ble mac address
-    uint8_t mac[6];
-    esp_err_t err;
-    err = esp_read_mac(&mac, 2);
-    if(err != ESP_OK)
-    {
-        configPRINTF(("Failed to read mac address\n"));
-    }
-    else
-    {
-        configPRINTF(("Checking device MAC: %02x%02x%02x%02x%02x%02x \n", mac[0], mac[1],mac[2],mac[3],mac[4],mac[5]));
-    }
+    // uint8_t mac[6];
+    // esp_err_t err;
+    // err = esp_read_mac(&mac, 2);
+    // if(err != ESP_OK)
+    // {
+    //     configPRINTF(("Failed to read mac address\n"));
+    // }
+    // else
+    // {
+    //     configPRINTF(("Checking device MAC: %02x%02x%02x%02x%02x%02x \n", mac[0], mac[1],mac[2],mac[3],mac[4],mac[5]));
+    // }
 
     configPRINTF(("Checking version data. \n"));
     pn532_spi_init(&nfc, PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
@@ -102,7 +102,7 @@ void nfc_task(void *pvParameter)
     configPRINTF(("Configuring SAM \n");)
     pn532_SAMConfig(&nfc);
 
-    configPRINTF(("Waiting for an NFC Card ... \n");)
+    // configPRINTF(("Waiting for an NFC Card ... \n");)
 
     while (1)
     {
@@ -115,10 +115,10 @@ void nfc_task(void *pvParameter)
             configPRINTF(("Successfully inlisted target\n"));
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("Could not inlist target \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("Could not inlist target \n"));
+        // }
 
         // NDEF detection procedure must correspond to the following steps:
         // 1. Select the NDEF tag
@@ -132,7 +132,7 @@ void nfc_task(void *pvParameter)
 
         // In this case, the smartphone is emulating an NFC Type 4 tag
         // 1. Send command to select smartphone
-        configPRINTF(("Selecting tag.... \n"));
+        // configPRINTF(("Selecting tag.... \n"));
         uint8_t tagSelect[] = { 0x00, // Class byte
                                 0xa4, // Instruction for select command
                                 0x04, // P1
@@ -148,13 +148,13 @@ void nfc_task(void *pvParameter)
             configPRINTF(("Tag selection successful \n"));
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("Tag selection unsuccessful \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("Tag selection unsuccessful \n"));
+        // }
 
         // 2. Select the capability container
-        configPRINTF(("Selecting capability container.... \n"));
+        // configPRINTF(("Selecting capability container.... \n"));
         uint8_t ccSelect[] = {  0x00, // Class byte
                                 0xa4, // Instruction for select command
                                 0x00, // P1
@@ -167,13 +167,13 @@ void nfc_task(void *pvParameter)
             configPRINTF(("Capability container selection successful \n"));
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("Capability container selection unsuccessful \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("Capability container selection unsuccessful \n"));
+        // }
 
         // 3a. Read the capability container
-        configPRINTF(("Reading capability container binary file.... \n"));
+        // configPRINTF(("Reading capability container binary file.... \n"));
         uint8_t ccRead[] = { 0x00, // Class byte
                             0xb0, // Instruction for select command
                             0x00, // P1
@@ -185,14 +185,14 @@ void nfc_task(void *pvParameter)
             configPRINTF(("Capability container read successful \n"));
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("Capability container read unsuccessful \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("Capability container read unsuccessful \n"));
+        // }
 
 
         // 3b. Select the NDEF file
-        configPRINTF(("Reading NDEF file.... \n"));
+        // configPRINTF(("Reading NDEF file.... \n"));
         uint8_t ndefSelect[] = { 0x00, // Class byte
                                 0xa4, // Instruction for select command
                                 0x00, // P1
@@ -205,13 +205,13 @@ void nfc_task(void *pvParameter)
             configPRINTF(("NDEF file read successful \n"));
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("NDEF file read unsuccessful \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("NDEF file read unsuccessful \n"));
+        // }
 
         // 4. Read NLEN (the NDEF length) from the NDEF file
-        configPRINTF(("Reading NDEF file length.... \n"));
+        // configPRINTF(("Reading NDEF file length.... \n"));
         uint8_t nlenRead[] = { 0x00, // Class byte
                                 0xb0, // Instruction for read binary command
                                 0x00, // P1
@@ -223,14 +223,14 @@ void nfc_task(void *pvParameter)
             configPRINTF(("NDEF file length read successful \n"));
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("NDEF file length read unsuccessful \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("NDEF file length read unsuccessful \n"));
+        // }
         
 
         // Reading data from the NDEF file
-        configPRINTF(("Reading data from NDEF file.... \n"));
+        // configPRINTF(("Reading data from NDEF file.... \n"));
         uint8_t ndefRead[] = { 0x00, // Class byte
                                 0xb0, // Instruction for read binary command
                                 0x00, // P1
@@ -283,10 +283,10 @@ void nfc_task(void *pvParameter)
         
             vTaskDelay(10 / portTICK_RATE_MS);
         }
-        else
-        {
-            configPRINTF(("NDEF file read unsuccessful \n"));
-        }
+        // else
+        // {
+        //     configPRINTF(("NDEF file read unsuccessful \n"));
+        // }
     
         // End of steps
         vTaskDelay(5000 / portTICK_RATE_MS);
