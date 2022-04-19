@@ -174,7 +174,7 @@ const WifiScanBle = ({route, navigation}) => {
     try {
       let interval = setInterval(() => {
         AwsFreertos.getConnectedDeviceAvailableNetworks(deviceMacAddress);
-      }, 2000);
+      }, 3000);
       setIsScanningDeviceWifiNetworks(true);
       const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
       const wifiEvents = [];
@@ -281,11 +281,20 @@ const WifiProvision = ({route, navigation}) => {
   console.log('Wi-Fi BSSID: ' + selectedBssid);
 
   const onConnectToNetwork = networkBsid => () => {
-    AwsFreertos.saveNetworkOnConnectedDevice(
-      deviceMacAddress,
-      networkBsid,
-      pwValue,
-    );
+    // Ensure message is handled byt esp32 despite short delay inbetween scans
+    for(i = 0; i<10; i++)
+    {
+      AwsFreertos.saveNetworkOnConnectedDevice(
+        deviceMacAddress,
+        networkBsid,
+        pwValue,
+      );
+    }
+    // AwsFreertos.saveNetworkOnConnectedDevice(
+    //   deviceMacAddress,
+    //   networkBsid,
+    //   pwValue,
+    // );
   };
 
 
@@ -556,6 +565,8 @@ return (
     <Text style={{paddingTop:30, fontSize: 18}}>
         Please select your preferred method of data transfer:
     </Text>
+    {/* For receiving MAC address */}
+    {/* <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('BLENFC')}></TouchableOpacity> */}
     <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Connect Bluetooth')}>
       <Text style={{color: 'snow', fontSize: 18}}>BLE</Text>
     </TouchableOpacity>
