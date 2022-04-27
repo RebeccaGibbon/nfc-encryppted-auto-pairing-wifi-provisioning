@@ -503,7 +503,7 @@ const BleNfcScreen = ({route, navigation}) => {
       // console.log(test);
     }
     console.log("str:" + JSON.stringify(str));
-    console.log(str.length);
+    // console.log(str.length);
     // Logic to send info to create ble pair
     if(str.length == 17){
       AwsFreertos.startScanBtDevices();
@@ -546,6 +546,10 @@ const NfcScreen = ({route, navigation}) => {
   }
 
   startSimulation();
+  //flag
+  // str = BtMacModule.getBtMacAddress();
+  // console.log(str.length);
+  // console.log('MAC address: ' + str);
 
   return (
     <View style={styles.container}>
