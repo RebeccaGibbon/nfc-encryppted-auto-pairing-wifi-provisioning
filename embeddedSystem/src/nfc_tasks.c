@@ -96,7 +96,7 @@ void nfc_task(void *pvParameter)
     }
     // Got ok data, print it out!
     configPRINTF(("Found PN532. \n"));
-    configPRINTF(("Firmware ver. %02x \n", versiondata));
+    // configPRINTF(("Firmware ver. %02x \n", versiondata));
 
     // configure board to read RFID tags
     configPRINTF(("Configuring SAM \n");)
