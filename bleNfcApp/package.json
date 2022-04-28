@@ -19,6 +19,7 @@
     "react-native": "0.66.4",
     "react-native-aws-freertos": "^0.1.23",
     "react-native-hce": "^0.1.2",
+    "react-native-nfc-manager": "^3.13.2",
     "react-native-safe-area-context": "^3.3.2",
     "react-native-screens": "^3.12.0"
   },

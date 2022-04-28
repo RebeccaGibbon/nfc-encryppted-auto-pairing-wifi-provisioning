@@ -6,26 +6,26 @@
  * @flow strict-local
  */
 
-import React, {useState, useEffect} from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  NativeEventEmitter,
-  NativeModules,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import {NavigationContainer} from '@react-navigation/native';
-import {createNativeStackNavigator} from '@react-navigation/native-stack';
-// Wi-Fi provision
-import AwsFreertos, {
-  eventKeys,
-} from 'react-native-aws-freertos';
+ import React, {useState, useEffect} from 'react';
+ import {
+   FlatList,
+   KeyboardAvoidingView,
+   NativeEventEmitter,
+   NativeModules,
+   SafeAreaView,
+   ScrollView,
+   StyleSheet,
+   Text,
+   TextInput,
+   TouchableOpacity,
+   View,
+ } from 'react-native';
+ import {NavigationContainer} from '@react-navigation/native';
+ import {createNativeStackNavigator} from '@react-navigation/native-stack';
+ // Wi-Fi provision
+ import AwsFreertos, {
+   eventKeys,
+ } from 'react-native-aws-freertos';
  // Animation
  import LottieView from 'lottie-react-native';
  import nfcCardRead from '../assets/nfcCardRead.json'
@@ -37,8 +37,8 @@ import AwsFreertos, {
  // LogBox.ignoreAllLogs(); //Ignore all log notifications
  
  const Stack = createNativeStackNavigator();
- 
- // Function to handle BLE scanning and connecting
+  
+  // Function to handle BLE scanning and connecting
  const BluetoothScreen = ({navigation}) => {
    const [result, setResult] = useState([]);
    const [scanning, setScanning] = useState(false);
@@ -137,10 +137,10 @@ import AwsFreertos, {
        />
      );
    };
- 
+  
    return (
      <SafeAreaView style={styles.container}>
-       <TouchableOpacity style={styles.button} onPress={() => onScanBtDevices}>
+       <TouchableOpacity style={styles.button} onPress={() => onScanBtDevices()}>
          <Text style={{color: 'snow', fontSize: 18}}>
            {'Scan for BLE Devices'}
          </Text>
@@ -149,7 +149,7 @@ import AwsFreertos, {
      </SafeAreaView>
    );
  };
- 
+  
  // Scan and list nearby WiFi networks from ESP32
  const WifiScanBle = ({route, navigation}) => {
    const uniqBy = (a, compareFun) => {
@@ -174,7 +174,7 @@ import AwsFreertos, {
      try {
        let interval = setInterval(() => {
          AwsFreertos.getConnectedDeviceAvailableNetworks(deviceMacAddress);
-       }, 2000);
+       }, 3000);
        setIsScanningDeviceWifiNetworks(true);
        const eventEmitter = new NativeEventEmitter(NativeModules.AwsFreertos);
        const wifiEvents = [];
@@ -269,7 +269,7 @@ import AwsFreertos, {
      </SafeAreaView>
    );
  };
- 
+  
  // Transfer credentials to ESP32 via BLE
  const WifiProvision = ({route, navigation}) => {
    const [pwValue, setPwValue] = useState(null);
@@ -281,11 +281,20 @@ import AwsFreertos, {
    console.log('Wi-Fi BSSID: ' + selectedBssid);
  
    const onConnectToNetwork = networkBsid => () => {
-     AwsFreertos.saveNetworkOnConnectedDevice(
-       deviceMacAddress,
-       networkBsid,
-       pwValue,
-     );
+     // Ensure message is handled byt esp32 despite short delay inbetween scans
+     for(i = 0; i<10; i++)
+     {
+       AwsFreertos.saveNetworkOnConnectedDevice(
+         deviceMacAddress,
+         networkBsid,
+         pwValue,
+       );
+     }
+     // AwsFreertos.saveNetworkOnConnectedDevice(
+     //   deviceMacAddress,
+     //   networkBsid,
+     //   pwValue,
+     // );
    };
  
  
@@ -468,9 +477,64 @@ import AwsFreertos, {
          }>
          <Text style={styles.nameText}>Wi-Fi provisioning success!</Text>
          <Text style={styles.nameText}>
-           The ESP32 with MAC address {deviceMacAddress} is now connected to{' '}
+           Credentials sent to ESP32 with MAC address {deviceMacAddress} for {' '} network
            {wifiSsid}
          </Text>
+       </View>
+     </View>
+   );
+ };
+
+const SuccessScreenNfc = ({navigation}) => {
+  return (
+    <View style={styles.container}>
+      <View
+        style={
+          (styles.button, {alignItems: 'center', backgroundColor: 'snow'})
+        }>
+        <Text style={styles.nameText}>
+          Emulation stopped
+        </Text>
+        {/* <Text style={styles.nameText}>Wi-Fi provisioning success!</Text> */}
+      </View>
+    </View>
+  );
+};
+ 
+ const BleNfcScreen = ({route, navigation}) => {
+   
+   let simulation;
+   const {BtMacModule} = NativeModules;
+ 
+   const startSimulation = async () => {
+     const tag = new NFCTagType4(NFCContentType.Text, "Hello world");
+     simulation = await new HCESession(tag).start();
+     //test
+     console.log(tag.content.content);
+     let str = await BtMacModule.getBtMacAddress();
+     
+     while(str.length == 0)
+     {
+       str = BtMacModule.getBtMacAddress();
+       // console.log(test);
+     }
+     console.log("str:" + JSON.stringify(str));
+     // console.log(str.length);
+     // Logic to send info to create ble pair
+     if(str.length == 17){
+       AwsFreertos.startScanBtDevices();
+       AwsFreertos.connectDevice(str);
+       console.log('MAC address: ' + str);
+     }
+   }
+ 
+   startSimulation();
+ 
+   return (
+     <View style={styles.container}>
+       <LottieView source={nfcCardRead} autoPlay loop />
+       <View>
+         <Text style={{paddingTop:50, fontSize:20}}>Please tap on the NFC module to pair with ESP32</Text>
        </View>
      </View>
    );
@@ -483,7 +547,7 @@ import AwsFreertos, {
    console.log("Password:" + pwValue);
  
    // todo: check if nfc is on
-   const content = ssidValue + "?" + pwValue;
+   const content = ssidValue + "?" + pwValue; 
    const contentType = NFCContentType.Text;
    console.log("Content:" + content);
    
@@ -496,8 +560,17 @@ import AwsFreertos, {
      //test
      console.log(tag.content.content);
    }
- 
+
+   const stopSimulation = async () => {
+    await simulation.terminate();
+  }
+
    startSimulation();
+   setTimeout(() => {
+    stopSimulation();
+    navigation.navigate("NFC Success");
+  }, 10000);
+   
  
    return (
      <View style={styles.container}>
@@ -517,6 +590,8 @@ import AwsFreertos, {
      <Text style={{paddingTop:30, fontSize: 18}}>
          Please select your preferred method of data transfer:
      </Text>
+     {/* For receiving MAC address */}
+     {/* <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('BLENFC')}></TouchableOpacity> */}
      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Connect Bluetooth')}>
        <Text style={{color: 'snow', fontSize: 18}}>BLE</Text>
      </TouchableOpacity>
@@ -617,8 +692,36 @@ import AwsFreertos, {
            }}
          />
          <Stack.Screen
+           name="NFC Success"
+           component={SuccessScreenNfc}
+           options={{
+             title: 'Wi-Fi Connect for ESP32',
+             headerStyle: {
+               backgroundColor: 'cadetblue',
+             },
+             headerTintColor: 'snow',
+             headerTintStyle: {
+               fontWeight: 'bold',
+             },
+           }}
+         />
+         <Stack.Screen
            name="NFC"
            component={NfcScreen}
+           options={{
+             title: 'Wi-Fi Connect for ESP32',
+             headerStyle: {
+               backgroundColor: 'cadetblue',
+             },
+             headerTintColor: 'snow',
+             headerTintStyle: {
+               fontWeight: 'bold',
+             },
+           }}
+         />
+         <Stack.Screen
+           name="BLENFC"
+           component={BleNfcScreen}
            options={{
              title: 'Wi-Fi Connect for ESP32',
              headerStyle: {
@@ -680,4 +783,4 @@ import AwsFreertos, {
  });
  
  export default App;
- 
+  
