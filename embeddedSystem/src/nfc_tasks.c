@@ -289,7 +289,7 @@ void nfc_task(void *pvParameter)
         // }
     
         // End of steps
-        vTaskDelay(5000 / portTICK_RATE_MS);
+        vTaskDelay(2000 / portTICK_RATE_MS);
     }
 
 }
